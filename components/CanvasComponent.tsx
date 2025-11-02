@@ -1,13 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import clsx from 'clsx';
-import type { TransformParams, ViewOptions } from '../types';
+import type { TransformParams, ViewOptions, Layer } from '../types';
 import CanvasRenderer from './CanvasRenderer';
 import CanvasInteraction from './CanvasInteraction';
 import GeometryManager from './GeometryManager';
 import { FileCodeIcon } from './icons';
 
 interface CanvasComponentProps {
-    svgData: string | null;
+    svgData: { data: string; id: number } | null;
     letterKey: string | null;
     params: TransformParams;
     viewOptions: ViewOptions;
@@ -16,6 +16,8 @@ interface CanvasComponentProps {
     editMode: 'transform' | 'points';
     isSnapEnabled: boolean;
     showGrid: boolean;
+    layers: Layer[];
+    activeLayerId: string | null;
 }
 
 const CanvasComponent: React.FC<CanvasComponentProps> = ({
@@ -27,7 +29,9 @@ const CanvasComponent: React.FC<CanvasComponentProps> = ({
     onZoomChange,
     editMode,
     isSnapEnabled,
-    showGrid
+    showGrid,
+    layers,
+    activeLayerId
 }) => {
     const [paperScope, setPaperScope] = useState<any>(null);
 
@@ -41,14 +45,18 @@ const CanvasComponent: React.FC<CanvasComponentProps> = ({
         console.log(`Geometry updated: ${paramKey} = ${newValue}`);
     }, []);
 
+    const hasContent = paperScope?.project.layers.some((l: paper.Layer) => l.hasChildren());
+
     return (
         <div className={clsx("flex-grow h-full flex items-center justify-center relative overflow-hidden", showGrid && "canvas-grid")}>
-            {svgData ? (
+            {hasContent || svgData ? (
                 <>
                     <CanvasRenderer
                         svgData={svgData}
                         params={params}
                         onReady={handlePaperReady}
+                        layers={layers}
+                        activeLayerId={activeLayerId}
                     />
                     {paperScope && (
                         <>
@@ -58,6 +66,7 @@ const CanvasComponent: React.FC<CanvasComponentProps> = ({
                                 editMode={editMode}
                                 isSnapEnabled={isSnapEnabled}
                                 showGrid={showGrid}
+                                layers={layers}
                             />
                             <GeometryManager
                                 paperScope={paperScope}

@@ -1,13 +1,23 @@
 import React, { useRef, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { UploadIcon } from './icons';
+import { UploadIcon, SparklesIcon, LayersIcon } from './icons';
 import AIImportPanel from './AIImportPanel';
+import LayerPanel from './LayerPanel';
+import { Layer } from '../types';
 
 interface SidebarProps {
     onSelectLetter: (key: string, svgString: string) => void;
     currentLetterKey: string | null;
     onImportSVG: (svgString: string) => void;
+    // Layer props
+    layers: Layer[];
+    activeLayerId: string | null;
+    onAddLayer: () => void;
+    onDeleteLayer: (id: string) => void;
+    onUpdateLayer: (id: string, updates: Partial<Layer>) => void;
+    onReorderLayer: (id: string, direction: 'up' | 'down') => void;
+    onSetActiveLayer: (id: string) => void;
 }
 
 // SKYWALK 字母的 SVG 數據
@@ -34,7 +44,7 @@ const letters: { [key: string]: string } = {
 
 const letterNames = ['S', 'K', 'Y', 'W', 'A', 'L'];
 
-const Sidebar: React.FC<SidebarProps> = ({ onSelectLetter, currentLetterKey, onImportSVG }) => {
+const LettersPanel: React.FC<Pick<SidebarProps, 'onSelectLetter' | 'currentLetterKey' | 'onImportSVG'>> = ({ onSelectLetter, currentLetterKey, onImportSVG }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [pasteContent, setPasteContent] = useState('');
 
@@ -59,10 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectLetter, currentLetterKey, onI
     };
 
     return (
-        <aside
-            className="w-[256px] h-full bg-gray-50 flex flex-col p-4 space-y-6 overflow-y-auto"
-            aria-label="Main Sidebar"
-        >
+        <div className="p-4 space-y-6">
             <div>
                 <h3 className="text-sm font-semibold text-gray-500 mb-3">字母</h3>
                 <div className="grid grid-cols-3 gap-2">
@@ -111,8 +118,70 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectLetter, currentLetterKey, onI
                     />
                 </div>
             </div>
+        </div>
+    );
+}
+
+const Sidebar: React.FC<SidebarProps> = (props) => {
+    const [activeTab, setActiveTab] = useState<'letters' | 'layers'>('letters');
+    
+    return (
+        <aside
+            className="w-[256px] h-full bg-gray-50 flex flex-col overflow-y-auto"
+            aria-label="Main Sidebar"
+        >
+            <div className="flex-shrink-0 border-b border-gray-200 flex">
+                <TabButton 
+                    label="字母" 
+                    icon={<SparklesIcon className="w-4 h-4" />} 
+                    isActive={activeTab === 'letters'} 
+                    onClick={() => setActiveTab('letters')} 
+                />
+                <TabButton 
+                    label="圖層" 
+                    icon={<LayersIcon className="w-4 h-4" />} 
+                    isActive={activeTab === 'layers'} 
+                    onClick={() => setActiveTab('layers')} 
+                />
+            </div>
+            
+            <div className="flex-grow">
+                {activeTab === 'letters' && (
+                    <LettersPanel 
+                        onSelectLetter={props.onSelectLetter}
+                        currentLetterKey={props.currentLetterKey}
+                        onImportSVG={props.onImportSVG}
+                    />
+                )}
+                 {activeTab === 'layers' && (
+                    <LayerPanel
+                        layers={props.layers}
+                        activeLayerId={props.activeLayerId}
+                        onAddLayer={props.onAddLayer}
+                        onDeleteLayer={props.onDeleteLayer}
+                        onUpdateLayer={props.onUpdateLayer}
+                        onReorderLayer={props.onReorderLayer}
+                        onSetActiveLayer={props.onSetActiveLayer}
+                    />
+                )}
+            </div>
         </aside>
     );
 };
+
+const TabButton: React.FC<{ label: string; icon: React.ReactNode; isActive: boolean; onClick: () => void }> = ({ label, icon, isActive, onClick }) => {
+    return (
+        <button
+            onClick={onClick}
+            className={clsx(
+                "flex-1 flex items-center justify-center gap-2 p-3 text-sm font-semibold border-b-2 transition-colors",
+                isActive ? "text-blue-600 border-blue-600 bg-blue-50" : "text-gray-500 border-transparent hover:bg-gray-100"
+            )}
+        >
+            {icon}
+            {label}
+        </button>
+    )
+}
 
 export default Sidebar;

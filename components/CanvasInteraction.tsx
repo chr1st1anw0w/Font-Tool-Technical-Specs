@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import paper from 'paper';
+import { Layer } from '../types';
 
 interface CanvasInteractionProps {
     paperScope: any;
@@ -7,6 +8,7 @@ interface CanvasInteractionProps {
     editMode: 'transform' | 'points';
     isSnapEnabled: boolean;
     showGrid: boolean;
+    layers: Layer[];
 }
 
 const MIN_ZOOM = 0.1;
@@ -18,11 +20,13 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
     onZoomChange,
     editMode,
     isSnapEnabled,
-    showGrid
+    showGrid,
+    layers
 }) => {
     const panState = useRef({ isPanning: false, lastPoint: null as any });
     const isSpacePressed = useRef(false);
-    const dragTargetRef = useRef<any>(null);
+    const pointDragTargetRef = useRef<any>(null); // For point editing
+    const artworkDragTargetRef = useRef<paper.Item | null>(null); // For object transform
 
     // Setup paper.js settings for selection visuals
     useEffect(() => {
@@ -39,7 +43,6 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         const oldZoom = view.zoom;
         const mousePosition = new paperScope.Point(event.offsetX, event.offsetY);
 
-        // This is the point in project coordinates that the mouse is over
         const viewPosition = view.viewToProject(mousePosition);
         
         const zoomFactor = 1.1;
@@ -49,10 +52,7 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         
         if (oldZoom !== newZoom) {
             view.zoom = newZoom;
-
-            // The new view coordinates of the same mouse position
             const newViewPosition = view.viewToProject(mousePosition);
-            // Move the view center by the difference
             view.center = view.center.add(viewPosition.subtract(newViewPosition));
             onZoomChange(newZoom);
         }
@@ -63,42 +63,66 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         
         const point = new paperScope.Point(event.offsetX, event.offsetY);
 
-        // Pan logic (middle mouse or spacebar + left click)
         if (event.button === 1 || (isSpacePressed.current && event.button === 0)) {
             event.preventDefault();
             panState.current.isPanning = true;
-            panState.current.lastPoint = point; // Use view coordinates for panning delta
+            panState.current.lastPoint = point;
             paperScope.view.element.style.cursor = 'grabbing';
             return;
         }
 
-        // Point editing logic
-        if (editMode === 'points' && event.button === 0) {
-            const artwork = paperScope.project.getItem({ data: { isArtwork: true } });
-            if (!artwork) return;
+        if (editMode === 'transform' && event.button === 0) {
+            const hitOptions = {
+                fill: true,
+                tolerance: 5 / paperScope.view.zoom,
+            };
+            const hitResult = paperScope.project.hitTest(point, hitOptions);
             
+            paperScope.project.deselectAll();
+            artworkDragTargetRef.current = null;
+
+            if (hitResult) {
+                let artwork = hitResult.item;
+                // Traverse up to find the root artwork group
+                while(artwork.parent && !artwork.data.isArtwork) {
+                    artwork = artwork.parent;
+                }
+
+                if (artwork && artwork.data.isArtwork && !artwork.layer.data.locked) {
+                    artwork.selected = true;
+                    artworkDragTargetRef.current = artwork;
+                }
+            }
+        }
+
+        if (editMode === 'points' && event.button === 0) {
             const hitOptions = {
                 segments: true,
                 stroke: true,
                 handles: true,
-                fill: false, // Don't select by clicking fill, only stroke
+                fill: false,
                 tolerance: 5 / paperScope.view.zoom,
             };
-            const hitResult = artwork.hitTest(point, hitOptions);
-            
-            if (hitResult) {
-                const item = hitResult.item;
-                
-                // If we're clicking a new item, deselect others.
-                // If we're clicking a handle/segment of an already selected item, do nothing.
-                if (!item.selected) {
-                    paperScope.project.deselectAll();
+            const hitResult = paperScope.project.hitTest(point, hitOptions);
+
+            paperScope.project.deselectAll();
+
+            if (hitResult && !hitResult.item.layer.data.locked) {
+                let artwork = hitResult.item;
+                while (artwork.parent && !artwork.data.isArtwork) {
+                    artwork = artwork.parent;
                 }
-                item.selected = true;
-                dragTargetRef.current = hitResult;
+
+                if (artwork && artwork.data.isArtwork) {
+                    const paths = artwork.getItems({ class: paperScope.Path });
+                    paths.forEach((p: paper.Path) => p.selected = true);
+                } else {
+                     hitResult.item.selected = true;
+                }
+                
+                pointDragTargetRef.current = hitResult;
             } else {
-                paperScope.project.deselectAll();
-                dragTargetRef.current = null;
+                pointDragTargetRef.current = null;
             }
         }
     }, [paperScope, editMode]);
@@ -106,25 +130,45 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
     const handleMouseMove = useCallback((event: MouseEvent) => {
         if (!paperScope) return;
         
-        // Panning
+        const point = new paperScope.Point(event.offsetX, event.offsetY);
+        const view = paperScope.view;
+
         if (panState.current.isPanning) {
-            const point = new paperScope.Point(event.offsetX, event.offsetY);
-            const view = paperScope.view;
-            // The delta is in view coordinates, which is what we want.
-            const delta = point.subtract(panState.current.lastPoint);
+            const delta = point.subtract(panState.current.lastPoint).divide(view.zoom);
             panState.current.lastPoint = point;
             view.center = view.center.subtract(delta);
             return;
         }
 
-        // Point editing drag
-        if (editMode === 'points' && dragTargetRef.current) {
-            const point = new paperScope.Point(event.offsetX, event.offsetY);
-            const dragTarget = dragTargetRef.current;
-            let projectPoint = paperScope.view.viewToProject(point);
+        if (editMode === 'transform' && artworkDragTargetRef.current) {
+            const delta = new paperScope.Point(event.movementX, event.movementY).divide(view.zoom);
+            let newPosition = artworkDragTargetRef.current.position.add(delta);
+            
+             if (isSnapEnabled && showGrid) {
+                const center = artworkDragTargetRef.current.bounds.center;
+                const snappedCenter = new paperScope.Point(
+                    Math.round(center.x / GRID_SIZE) * GRID_SIZE,
+                    Math.round(center.y / GRID_SIZE) * GRID_SIZE
+                );
+                const snapDelta = snappedCenter.subtract(center);
+                newPosition = newPosition.add(snapDelta);
+            }
+
+            artworkDragTargetRef.current.position = artworkDragTargetRef.current.position.add(delta);
+            return;
+        }
+
+        if (editMode === 'points' && pointDragTargetRef.current) {
+            const dragTarget = pointDragTargetRef.current;
+            if (dragTarget.item.layer.data.locked) {
+                pointDragTargetRef.current = null;
+                return;
+            }
+            
+            let projectPoint = view.viewToProject(point);
             
             if (isSnapEnabled && showGrid && dragTarget.type === 'segment') {
-                const gridSizeInProjectCoords = GRID_SIZE / paperScope.view.zoom;
+                const gridSizeInProjectCoords = GRID_SIZE;
                 projectPoint.x = Math.round(projectPoint.x / gridSizeInProjectCoords) * gridSizeInProjectCoords;
                 projectPoint.y = Math.round(projectPoint.y / gridSizeInProjectCoords) * gridSizeInProjectCoords;
             }
@@ -143,7 +187,9 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         if (!paperScope) return;
         
         panState.current.isPanning = false;
-        dragTargetRef.current = null;
+        pointDragTargetRef.current = null;
+        artworkDragTargetRef.current = null;
+
 
         const canvas = paperScope.view.element;
         if (isSpacePressed.current) {
@@ -183,6 +229,9 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
 
         const canvas = paperScope.view.element;
         if (!canvas) return;
+        
+        // Clear previous selections when edit mode changes
+        paperScope.project.deselectAll();
 
         canvas.addEventListener('wheel', handleWheel, { passive: false });
         canvas.addEventListener('mousedown', handleMouseDown);
@@ -201,7 +250,7 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
             document.removeEventListener('keydown', handleKeyDown);
             document.removeEventListener('keyup', handleKeyUp);
         };
-    }, [paperScope, handleWheel, handleMouseDown, handleMouseMove, handleMouseUp, handleKeyDown, handleKeyUp]);
+    }, [paperScope, handleWheel, handleMouseDown, handleMouseMove, handleMouseUp, handleKeyDown, handleKeyUp, editMode]);
 
     return null;
 };

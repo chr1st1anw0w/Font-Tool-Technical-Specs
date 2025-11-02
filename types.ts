@@ -10,3 +10,10 @@ export interface ViewOptions {
   previewMode: boolean;
   previewBg: 'dark' | 'light';
 }
+
+export interface Layer {
+  id: string;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+}

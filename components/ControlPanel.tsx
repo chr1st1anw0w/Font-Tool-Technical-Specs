@@ -127,6 +127,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ params, onParamChange, onAp
                                         <button
                                             onClick={() => onApplyStyle(style)}
                                             className="mt-2 w-full text-center py-1.5 text-xs font-semibold rounded-md bg-white border border-button-secondary-border text-button-secondary-text hover:bg-button-secondary-hover-bg"
+                                            disabled={disabled}
                                         >
                                             套用
                                         </button>
