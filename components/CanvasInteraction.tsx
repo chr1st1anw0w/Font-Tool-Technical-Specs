@@ -11,7 +11,7 @@ interface CanvasInteractionProps {
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 16;
-const GRID_SIZE = 20; // Corresponds to the background-size in index.html CSS
+const GRID_SIZE = 40; // Corresponds to the background-size in index.html CSS
 
 const CanvasInteraction: React.FC<CanvasInteractionProps> = ({ 
     paperScope, 

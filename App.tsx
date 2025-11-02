@@ -36,7 +36,7 @@ const App: React.FC = () => {
     const [zoomLevel, setZoomLevel] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState<string | null>(null);
-    const [showGrid, setShowGrid] = useState(true);
+    const [showGrid, setShowGrid] = useLocalStorage<boolean>('skywalk-show-grid', true);
     const [isSnapEnabled, setIsSnapEnabled] = useState(true);
     const [showGuides, setShowGuides] = useState(true);
     const [editMode, setEditMode] = useState<EditMode>('transform');

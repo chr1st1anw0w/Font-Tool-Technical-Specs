@@ -35,7 +35,8 @@ const CanvasRenderer: React.FC<CanvasRendererProps> = ({ svgData, params, onRead
         if (paths && Array.isArray(paths)) {
             paths.forEach((path: any) => {
                 path.strokeWidth = params.weight;
-                path.fillColor = 'black';
+                // FIX: Use paper.Color for fill color to fix type error.
+                path.fillColor = new scope.Color('black');
                 path.strokeColor = null; // No stroke on filled paths
             });
         }
@@ -96,7 +97,8 @@ const CanvasRenderer: React.FC<CanvasRendererProps> = ({ svgData, params, onRead
                                 return;
                             }
                             
-                            item.fillColor = 'black';
+                            // FIX: Use paper.Color for fill color to fix type error.
+                            item.fillColor = new scope.Color('black');
                             item.strokeColor = null;
 
                             const itemsToProcess = item.children ? [...item.children] : [item];
