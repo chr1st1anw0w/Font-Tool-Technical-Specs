@@ -54,7 +54,7 @@ const PerformanceMonitor: React.FC = () => {
       {/* 切換按鈕 */}
       <button
         onClick={() => setIsVisible(!isVisible)}
-        className="fixed bottom-4 right-4 w-10 h-10 bg-[var(--neutral-gray-800)] border border-[var(--neutral-gray-600)] rounded-full flex items-center justify-center text-xs text-[var(--neutral-gray-400)] hover:bg-[var(--neutral-gray-700)] transition-colors z-50"
+        className="fixed bottom-4 left-4 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-full flex items-center justify-center text-lg text-[var(--text-secondary)] hover:bg-[var(--button-secondary-hover-bg)] transition-colors z-50 shadow"
         title="效能監控"
       >
         📊
@@ -64,24 +64,25 @@ const PerformanceMonitor: React.FC = () => {
       <AnimatePresence>
         {isVisible && (
           <motion.div
-            className="fixed bottom-16 right-4 bg-[var(--neutral-gray-800)] border border-[var(--neutral-gray-600)] rounded-lg p-3 text-xs text-[var(--neutral-gray-300)] font-mono z-50"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed bottom-16 left-4 bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-lg p-3 text-xs text-[var(--text-primary)] font-mono z-50 shadow-lg"
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
           >
             <div className="space-y-1">
               <div className="flex justify-between gap-4">
-                <span>FPS:</span>
-                <span className={stats.fps < 30 ? 'text-red-400' : stats.fps < 50 ? 'text-yellow-400' : 'text-green-400'}>
+                <span className="text-[var(--text-secondary)]">FPS:</span>
+                <span className={stats.fps < 30 ? 'text-red-500' : stats.fps < 50 ? 'text-yellow-500' : 'text-green-500'}>
                   {stats.fps}
                 </span>
               </div>
               <div className="flex justify-between gap-4">
-                <span>記憶體:</span>
+                <span className="text-[var(--text-secondary)]">記憶體:</span>
                 <span>{stats.memory}MB</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span>渲染時間:</span>
+                <span className="text-[var(--text-secondary)]">渲染:</span>
                 <span>{stats.renderTime}ms</span>
               </div>
             </div>

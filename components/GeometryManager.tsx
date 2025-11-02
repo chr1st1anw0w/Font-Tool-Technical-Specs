@@ -21,131 +21,93 @@ const GeometryManager: React.FC<GeometryManagerProps> = ({
     const geometryMapRef = useRef(new Map<string, any>());
     const aidsLayerRef = useRef<any>(null);
 
-    const updateGeometry = useCallback((paramKey: string, newValue: number) => {
-        const item = geometryMapRef.current.get(paramKey);
-        if (!item) {
-            console.warn(`Geometry item with key "${paramKey}" not found.`);
-            return;
+    const updateItemTransformation = useCallback((item: paper.Item, newParams: TransformParams) => {
+        if (!item.data.isArtwork || !paperScope) return;
+        const scope = paperScope;
+
+        const oldParams: TransformParams = item.data.params || { weight: 40, width: 100, slant: 0 };
+        
+        const pivot = item.bounds.center;
+        const RADIANS = Math.PI / 180;
+
+        // Create matrix for OLD geometric params
+        const oldMatrix = new scope.Matrix();
+        if (oldParams.width !== 100) {
+            oldMatrix.scale(oldParams.width / 100, 1, pivot);
+        }
+        if (oldParams.slant !== 0) {
+            oldMatrix.shear(Math.tan(oldParams.slant * RADIANS), 0, pivot);
         }
 
-        const bounds = item.bounds;
-        switch (paramKey) {
-            case 's-top-bar-width':
-                item.bounds.right = bounds.left + newValue;
-                break;
-            case 's-left-stem-height':
-                item.bounds.bottom = bounds.top + newValue;
-                break;
-            case 's-mid-bar-spacing':
-                // This is more complex, involves moving multiple items
-                const midBar = geometryMapRef.current.get('s-mid-bar');
-                const leftStem = geometryMapRef.current.get('s-left-stem');
-                if (midBar && leftStem) {
-                    const diff = (leftStem.bounds.top + newValue) - midBar.bounds.top;
-                    midBar.position.y += diff;
-                    // And other dependent parts...
-                }
-                break;
-            // Add more cases for all editable dimensions
+        // Create matrix for NEW geometric params
+        const newMatrix = new scope.Matrix();
+        if (newParams.width !== 100) {
+            newMatrix.scale(newParams.width / 100, 1, pivot);
+        }
+        if (newParams.slant !== 0) {
+            newMatrix.shear(Math.tan(newParams.slant * RADIANS), 0, pivot);
         }
 
-        // Trigger redraw
-        if (onGeometryUpdate) {
-            onGeometryUpdate(paramKey, newValue);
-        }
-    }, [onGeometryUpdate]);
+        // Calculate the delta transformation matrix: delta = new * old^-1
+        const invertedOldMatrix = oldMatrix.inverted();
+        const deltaMatrix = newMatrix.clone().append(invertedOldMatrix);
 
+        const paths = item.getItems({ class: scope.Path });
+        if (paths) {
+            paths.forEach((path: paper.Path) => {
+                // Apply delta matrix to bake the change into the geometry
+                path.transform(deltaMatrix);
+                
+                // Apply style properties (non-geometric)
+                path.strokeWidth = newParams.weight;
+            });
+        }
+
+        // Store the newly applied params on the item
+        item.data.params = { ...newParams };
+
+    }, [paperScope]);
+
+    const applyAllTransformations = useCallback(() => {
+        if (!paperScope) return;
+        const scope = paperScope;
+        const artworkItems = scope.project.getItems({ data: { isArtwork: true } });
+        artworkItems.forEach((item: paper.Item) => updateItemTransformation(item, params));
+        scope.view.draw();
+    }, [params, paperScope, updateItemTransformation]);
+
+
+    // Attach transformation functions to paperScope for global access
+    useEffect(() => {
+        if (paperScope) {
+            paperScope.updateItemTransformation = updateItemTransformation;
+            paperScope.applyAllTransformations = applyAllTransformations;
+        }
+    }, [paperScope, updateItemTransformation, applyAllTransformations]);
+
+    // Listen for param changes and apply them
+    useEffect(() => {
+        applyAllTransformations();
+    }, [params, applyAllTransformations]);
+
+    // Dimension Aids Logic (unchanged)
     useEffect(() => {
         if (!paperScope) return;
-
-        const scope = paperScope;
-        aidsLayerRef.current = new scope.Layer({ name: 'aids' });
-        scope.project.addLayer(aidsLayerRef.current);
-
-        aidsLayerRef.current.onDoubleClick = (event: any) => {
-            const hitResult = aidsLayerRef.current.hitTest(event.point, {
-                fill: true,
-                tolerance: 10
-            });
-
-            if (hitResult && hitResult.item) {
-                let targetItem = hitResult.item;
-                while (targetItem.parent && !targetItem.data.paramKey) {
-                    targetItem = targetItem.parent;
-                }
-
-                const paramKey = targetItem.data.paramKey;
-                if (paramKey) {
-                    const currentValue = targetItem.data.currentValue;
-                    const newValueStr = prompt(`Enter new value for ${paramKey} (current: ${currentValue}):`, `${currentValue}`);
-
-                    if (newValueStr) {
-                        const newValue = parseFloat(newValueStr);
-                        if (isNaN(newValue) || newValue < 0 || newValue > 600) {
-                            alert("Invalid input. Please enter a number between 0 and 600.");
-                            return;
-                        }
-
-                        if (paramKey.includes('spacing')) {
-                            const topItem = geometryMapRef.current.get(targetItem.data.geoKey);
-                            const bottomItem = geometryMapRef.current.get(targetItem.data.relativeTo);
-                            if (topItem && bottomItem) {
-                                const currentSpacing = bottomItem.bounds.top - topItem.bounds.bottom;
-                                const delta = newValue - currentSpacing;
-                                // This is a simplified move; a real model would move dependent parts too.
-                                bottomItem.position.y += delta;
-                            }
-                        } else { // Handle linear dimensions
-                            const geoKey = targetItem.data.geoKey;
-                            const itemToUpdate = geometryMapRef.current.get(geoKey);
-                            const anchor = targetItem.data.anchor;
-
-                            if (itemToUpdate) {
-                                const bounds = itemToUpdate.bounds.clone();
-
-                                if (paramKey.includes('width')) {
-                                    if (anchor === 'left') bounds.right = bounds.left + newValue;
-                                    else bounds.left = bounds.right - newValue;
-                                } else if (paramKey.includes('height')) {
-                                     if (anchor === 'top') bounds.bottom = bounds.top + newValue;
-                                     else bounds.top = bounds.bottom - newValue;
-                                }
-                                itemToUpdate.bounds = bounds;
-                            }
-                        }
-
-                        updateGeometry(paramKey, newValue);
-                    }
-                }
-            }
-        };
-    }, [paperScope, updateGeometry]);
-
-    useEffect(() => {
-        if (!paperScope || !aidsLayerRef.current) return;
-
+        if (!aidsLayerRef.current) {
+            aidsLayerRef.current = new paperScope.Layer({ name: 'aids' });
+            paperScope.project.addLayer(aidsLayerRef.current);
+        }
         const aidsLayer = aidsLayerRef.current;
         aidsLayer.removeChildren();
         aidsLayer.visible = viewOptions.showAids && !!letterKey;
 
         if (aidsLayer.visible && letterKey) {
             const aids = drawDimensionAids(paperScope, letterKey, geometryMapRef.current);
-            if (aids) {
-                aidsLayer.addChild(aids);
-            }
+            if (aids) aidsLayer.addChild(aids);
         }
+    }, [paperScope, viewOptions.showAids, letterKey]);
 
-    }, [paperScope, viewOptions.showAids, letterKey, params]);
-
-    // Expose geometry map for external access
-    useEffect(() => {
-        if (paperScope) {
-            // Store geometry map in paper scope for external access
-            paperScope.geometryMap = geometryMapRef.current;
-        }
-    }, [paperScope]);
-
-    return null; // This component doesn't render anything
+    return null;
 };
 
 export default GeometryManager;

@@ -35,31 +35,31 @@ class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[var(--primary-deep-blue)] flex items-center justify-center p-4">
+        <div className="min-h-screen bg-[var(--bg-canvas)] flex items-center justify-center p-4">
           <motion.div
-            className="max-w-md w-full bg-[var(--neutral-gray-800)] rounded-lg border border-[var(--neutral-gray-700)] p-6 text-center"
+            className="max-w-md w-full bg-[var(--bg-panel)] rounded-lg border border-[var(--border-color)] p-6 text-center shadow-lg"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <div className="w-16 h-16 mx-auto mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
-              <span className="text-2xl">⚠️</span>
+            <div className="w-16 h-16 mx-auto mb-4 bg-red-500/10 rounded-full flex items-center justify-center">
+              <span className="text-3xl">⚠️</span>
             </div>
             
-            <h2 className="text-xl font-bold text-white mb-2">
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
               應用程式發生錯誤
             </h2>
             
-            <p className="text-[var(--neutral-gray-400)] mb-6">
+            <p className="text-[var(--text-secondary)] mb-6">
               很抱歉，應用程式遇到了意外錯誤。您可以嘗試重新載入頁面或重置應用程式狀態。
             </p>
 
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <details className="mb-6 text-left">
-                <summary className="cursor-pointer text-[var(--neutral-gray-300)] mb-2">
+                <summary className="cursor-pointer text-[var(--text-secondary)] mb-2">
                   錯誤詳情
                 </summary>
-                <div className="bg-[var(--neutral-gray-900)] p-3 rounded text-xs font-mono text-red-400 overflow-auto max-h-32">
+                <div className="bg-[var(--bg-canvas)] p-3 rounded text-xs font-mono text-red-600 overflow-auto max-h-32">
                   <div className="mb-2">
                     <strong>錯誤訊息:</strong> {this.state.error.message}
                   </div>
@@ -76,13 +76,13 @@ class ErrorBoundary extends Component<Props, State> {
             <div className="flex gap-3 justify-center">
               <button
                 onClick={this.handleReset}
-                className="px-4 py-2 bg-[var(--neutral-gray-700)] border border-[var(--neutral-gray-600)] text-[var(--neutral-gray-200)] rounded-lg hover:bg-[var(--neutral-gray-600)] transition-colors"
+                className="h-10 px-4 text-sm font-semibold rounded-md flex items-center space-x-2 bg-[var(--button-secondary-bg)] border border-[var(--button-secondary-border)] text-[var(--button-secondary-text)] hover:bg-[var(--button-secondary-hover-bg)] transition-colors"
               >
                 重試
               </button>
               <button
                 onClick={this.handleReload}
-                className="px-4 py-2 bg-gradient-to-r from-[var(--primary-tech-blue)] to-[var(--primary-sky-blue)] text-white rounded-lg hover:shadow-lg transition-all"
+                className="h-10 px-4 text-sm font-semibold rounded-md flex items-center space-x-2 bg-[var(--button-primary-bg)] text-[var(--button-primary-text)] hover:bg-gray-800 transition-all"
               >
                 重新載入
               </button>

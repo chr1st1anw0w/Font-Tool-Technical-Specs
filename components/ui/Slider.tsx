@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import clsx from 'clsx';
 
 interface SliderProps {
@@ -12,8 +11,6 @@ interface SliderProps {
   displaySuffix?: string;
   disabled?: boolean;
   className?: string;
-  minLabel?: string;
-  maxLabel?: string;
 }
 
 const Slider: React.FC<SliderProps> = ({
@@ -26,15 +23,15 @@ const Slider: React.FC<SliderProps> = ({
   displaySuffix = '',
   disabled = false,
   className,
-  minLabel,
-  maxLabel,
 }) => {
-  const [isDragging, setIsDragging] = useState(false);
   const [inputValue, setInputValue] = useState(value.toString());
 
   useEffect(() => {
-    setInputValue(value.toString());
-  }, [value]);
+    // Only update input value if it's not currently focused
+    if (document.activeElement?.tagName !== 'INPUT' || document.activeElement?.id !== `slider-input-${label}`) {
+      setInputValue(value.toFixed(0));
+    }
+  }, [value, label]);
 
   const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseFloat(e.target.value);
@@ -46,14 +43,13 @@ const Slider: React.FC<SliderProps> = ({
   }, []);
 
   const handleInputBlur = useCallback(() => {
-    const numValue = parseFloat(inputValue);
-    if (!isNaN(numValue)) {
-      const clampedValue = Math.min(Math.max(numValue, min), max);
-      onChange(clampedValue);
-      setInputValue(clampedValue.toString());
-    } else {
-      setInputValue(value.toString());
+    let numValue = parseFloat(inputValue);
+    if (isNaN(numValue)) {
+      numValue = value;
     }
+    const clampedValue = Math.min(Math.max(numValue, min), max);
+    onChange(clampedValue);
+    setInputValue(clampedValue.toFixed(0));
   }, [inputValue, min, max, value, onChange]);
 
   const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -61,7 +57,7 @@ const Slider: React.FC<SliderProps> = ({
       handleInputBlur();
       (e.target as HTMLInputElement).blur();
     } else if (e.key === 'Escape') {
-      setInputValue(value.toString());
+      setInputValue(value.toFixed(0));
       (e.target as HTMLInputElement).blur();
     }
   }, [handleInputBlur, value]);
@@ -69,13 +65,28 @@ const Slider: React.FC<SliderProps> = ({
   const percentage = ((value - min) / (max - min)) * 100;
 
   return (
-    <div className={clsx('space-y-2', className)}>
+    <div className={clsx('space-y-3', className)}>
       <div className="flex justify-between items-center">
-        <label className="text-sm font-medium text-gray-700">
+        <label htmlFor={`slider-input-${label}`} className="text-sm font-medium text-gray-700">
           {label}
         </label>
-        <div className="flex items-center text-sm font-medium text-gray-700">
-          {value.toFixed(0)}{displaySuffix}
+        <div className="flex items-center border border-[var(--input-border)] rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-[var(--input-focus-ring)] focus-within:border-[var(--input-focus-ring)] transition-all">
+            <input
+                id={`slider-input-${label}`}
+                type="number"
+                value={inputValue}
+                onChange={handleInputChange}
+                onBlur={handleInputBlur}
+                onKeyDown={handleInputKeyDown}
+                min={min}
+                max={max}
+                step={step}
+                disabled={disabled}
+                className="w-16 text-right pr-0.5 py-1 text-sm bg-transparent focus:outline-none [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            {displaySuffix && (
+              <span className="text-sm text-gray-500 bg-gray-50 px-2 py-1 border-l border-gray-200">{displaySuffix}</span>
+            )}
         </div>
       </div>
       
@@ -84,26 +95,16 @@ const Slider: React.FC<SliderProps> = ({
           type="range"
           value={value}
           onChange={handleSliderChange}
-          onMouseDown={() => setIsDragging(true)}
-          onMouseUp={() => setIsDragging(false)}
           min={min}
           max={max}
           step={step}
           disabled={disabled}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed slider-thumb"
+          className="w-full h-0.5 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed slider-thumb"
           style={{
             background: `linear-gradient(to right, var(--accent-blue) 0%, var(--accent-blue) ${percentage}%, #E5E7EB ${percentage}%, #E5E7EB 100%)`
           }}
         />
       </div>
-
-       {(minLabel || maxLabel) && (
-        <div className="flex justify-between text-xs text-gray-500 -mt-1">
-            <span>{minLabel}</span>
-            <span>{value.toFixed(0)}{displaySuffix}</span>
-            <span>{maxLabel}</span>
-        </div>
-      )}
     </div>
   );
 };

@@ -63,6 +63,42 @@
             background: #9ca3af; /* neutral-400 */
         }
 
+        /* Custom slider thumb styles */
+        input[type=range].slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent; /* Hides the default track */
+            cursor: pointer;
+        }
+        input[type=range].slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--bg-panel);
+            border: 2px solid var(--accent-blue);
+            border-radius: 50%;
+            margin-top: -7px; /* Adjust to center on the 2px track */
+            transition: all 0.1s ease-in-out;
+        }
+        input[type=range].slider-thumb:hover::-webkit-slider-thumb {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+        }
+        input[type=range].slider-thumb::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--bg-panel);
+            border: 2px solid var(--accent-blue);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.1s ease-in-out;
+        }
+        input[type=range].slider-thumb:hover::-moz-range-thumb {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+        }
+
     </style>
 <script type="importmap">
 {
