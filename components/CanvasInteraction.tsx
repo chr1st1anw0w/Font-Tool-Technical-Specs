@@ -5,15 +5,17 @@ import { Layer } from '../types';
 interface CanvasInteractionProps {
     paperScope: any;
     onZoomChange: (zoom: number) => void;
-    editMode: 'transform' | 'points';
+    editMode: 'transform' | 'points' | 'pen';
     isSnapEnabled: boolean;
     showGrid: boolean;
     layers: Layer[];
+    onSelectionChange: (count: number) => void;
+    onItemSelected: (item: paper.Item | null) => void;
 }
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 16;
-const GRID_SIZE = 40; // Corresponds to the background-size in index.html CSS
+const GRID_SIZE = 40; 
 
 const CanvasInteraction: React.FC<CanvasInteractionProps> = ({ 
     paperScope, 
@@ -21,28 +23,27 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
     editMode,
     isSnapEnabled,
     showGrid,
-    layers
+    onSelectionChange,
+    onItemSelected,
 }) => {
     const panState = useRef({ isPanning: false, lastPoint: null as any });
     const isSpacePressed = useRef(false);
-    const pointDragTargetRef = useRef<any>(null); // For point editing
-    const artworkDragTargetRef = useRef<paper.Item | null>(null); // For object transform
+    const pointDragTargetRef = useRef<any>(null);
+    const artworkDragTargetRef = useRef<paper.Item | null>(null);
+    const selectionRectangleRef = useRef<paper.Path.Rectangle | null>(null);
 
-    // Setup paper.js settings for selection visuals
     useEffect(() => {
         if (!paperScope) return;
         paperScope.settings.handleSize = 8;
-        paperScope.settings.selectionColor = new paperScope.Color('#3B82F6'); // accent-blue
+        paperScope.settings.selectionColor = new paperScope.Color('#3B82F6');
     }, [paperScope]);
 
     const handleWheel = useCallback((event: WheelEvent) => {
         if (!paperScope) return;
-        
         event.preventDefault();
         const view = paperScope.view;
         const oldZoom = view.zoom;
         const mousePosition = new paperScope.Point(event.offsetX, event.offsetY);
-
         const viewPosition = view.viewToProject(mousePosition);
         
         const zoomFactor = 1.1;
@@ -58,103 +59,111 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         }
     }, [paperScope, onZoomChange]);
 
-    const handleMouseDown = useCallback((event: MouseEvent) => {
-        if (!paperScope) return;
+    const handleMouseDown = useCallback((event: any) => {
+        if (!paperScope || editMode === 'pen') return;
         
-        const point = new paperScope.Point(event.offsetX, event.offsetY);
+        const point = new paperScope.Point(event.point);
+        const nativeEvent = event.event as MouseEvent;
 
-        if (event.button === 1 || (isSpacePressed.current && event.button === 0)) {
-            event.preventDefault();
+        if (nativeEvent.button === 1 || (isSpacePressed.current && nativeEvent.button === 0)) {
+            nativeEvent.preventDefault();
             panState.current.isPanning = true;
             panState.current.lastPoint = point;
             paperScope.view.element.style.cursor = 'grabbing';
             return;
         }
 
-        if (editMode === 'transform' && event.button === 0) {
-            const hitOptions = {
-                fill: true,
-                tolerance: 5 / paperScope.view.zoom,
-            };
+        if (editMode === 'transform' && nativeEvent.button === 0) {
+            const hitOptions = { fill: true, tolerance: 5 / paperScope.view.zoom };
             const hitResult = paperScope.project.hitTest(point, hitOptions);
             
-            paperScope.project.deselectAll();
-            artworkDragTargetRef.current = null;
+            const isShiftPressed = nativeEvent.shiftKey;
 
             if (hitResult) {
                 let artwork = hitResult.item;
-                // Traverse up to find the root artwork group
                 while(artwork.parent && !artwork.data.isArtwork) {
                     artwork = artwork.parent;
                 }
 
                 if (artwork && artwork.data.isArtwork && !artwork.layer.data.locked) {
-                    artwork.selected = true;
-                    artworkDragTargetRef.current = artwork;
+                    if (isShiftPressed) {
+                        artwork.selected = !artwork.selected;
+                    } else {
+                        if (!artwork.selected) {
+                            paperScope.project.deselectAll();
+                            artwork.selected = true;
+                        }
+                    }
+                    artworkDragTargetRef.current = artwork; // Prepare for dragging
                 }
+            } else {
+                if (!isShiftPressed) {
+                    paperScope.project.deselectAll();
+                }
+                selectionRectangleRef.current = new paperScope.Path.Rectangle({
+                    from: point,
+                    to: point,
+                    strokeColor: '#3B82F6',
+                    dashArray: [4, 4],
+                    strokeWidth: 1 / paperScope.view.zoom,
+                });
             }
         }
 
-        if (editMode === 'points' && event.button === 0) {
-            const hitOptions = {
-                segments: true,
-                stroke: true,
-                handles: true,
-                fill: false,
-                tolerance: 5 / paperScope.view.zoom,
-            };
+        if (editMode === 'points' && nativeEvent.button === 0) {
+            const hitOptions = { segments: true, stroke: true, handles: true, tolerance: 5 / paperScope.view.zoom };
             const hitResult = paperScope.project.hitTest(point, hitOptions);
-
-            paperScope.project.deselectAll();
+            
+            if (!nativeEvent.shiftKey) {
+                paperScope.project.deselectAll();
+            }
 
             if (hitResult && !hitResult.item.layer.data.locked) {
-                let artwork = hitResult.item;
-                while (artwork.parent && !artwork.data.isArtwork) {
-                    artwork = artwork.parent;
-                }
-
-                if (artwork && artwork.data.isArtwork) {
-                    const paths = artwork.getItems({ class: paperScope.Path });
-                    paths.forEach((p: paper.Path) => p.selected = true);
+                 if (hitResult.type === 'stroke') {
+                    const location = hitResult.location;
+                    const newSegment = hitResult.item.insert(location.index + 1, point);
+                    newSegment.selected = true;
+                    pointDragTargetRef.current = { type: 'segment', segment: newSegment };
                 } else {
-                     hitResult.item.selected = true;
+                    hitResult.item.selected = true;
+                    pointDragTargetRef.current = hitResult;
                 }
-                
-                pointDragTargetRef.current = hitResult;
             } else {
                 pointDragTargetRef.current = null;
             }
         }
-    }, [paperScope, editMode]);
-
-    const handleMouseMove = useCallback((event: MouseEvent) => {
-        if (!paperScope) return;
         
-        const point = new paperScope.Point(event.offsetX, event.offsetY);
+        onSelectionChange(paperScope.project.selectedItems.length);
+        onItemSelected(paperScope.project.selectedItems.length === 1 ? paperScope.project.selectedItems[0] : null);
+
+    }, [paperScope, editMode, onSelectionChange, onItemSelected]);
+
+    const handleMouseMove = useCallback((event: any) => {
+        if (!paperScope || editMode === 'pen') return;
+        
+        const point = new paperScope.Point(event.point);
         const view = paperScope.view;
 
         if (panState.current.isPanning) {
-            const delta = point.subtract(panState.current.lastPoint).divide(view.zoom);
+            const delta = point.subtract(panState.current.lastPoint);
             panState.current.lastPoint = point;
             view.center = view.center.subtract(delta);
             return;
         }
 
-        if (editMode === 'transform' && artworkDragTargetRef.current) {
-            const delta = new paperScope.Point(event.movementX, event.movementY).divide(view.zoom);
-            let newPosition = artworkDragTargetRef.current.position.add(delta);
-            
-             if (isSnapEnabled && showGrid) {
-                const center = artworkDragTargetRef.current.bounds.center;
-                const snappedCenter = new paperScope.Point(
-                    Math.round(center.x / GRID_SIZE) * GRID_SIZE,
-                    Math.round(center.y / GRID_SIZE) * GRID_SIZE
-                );
-                const snapDelta = snappedCenter.subtract(center);
-                newPosition = newPosition.add(snapDelta);
-            }
+        if (selectionRectangleRef.current) {
+            selectionRectangleRef.current.segments[1].point.x = point.x;
+            selectionRectangleRef.current.segments[2].point = point;
+            selectionRectangleRef.current.segments[3].point.y = point.y;
+        }
 
-            artworkDragTargetRef.current.position = artworkDragTargetRef.current.position.add(delta);
+        if (editMode === 'transform' && artworkDragTargetRef.current && (event.event as MouseEvent).buttons === 1) {
+            const delta = new paperScope.Point(event.delta);
+            paperScope.project.selectedItems.forEach((item: paper.Item) => {
+                 if (!item.layer.data.locked) {
+                    item.position = item.position.add(delta);
+                 }
+            });
             return;
         }
 
@@ -165,12 +174,12 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
                 return;
             }
             
-            let projectPoint = view.viewToProject(point);
+            let projectPoint = point;
             
             if (isSnapEnabled && showGrid && dragTarget.type === 'segment') {
-                const gridSizeInProjectCoords = GRID_SIZE;
-                projectPoint.x = Math.round(projectPoint.x / gridSizeInProjectCoords) * gridSizeInProjectCoords;
-                projectPoint.y = Math.round(projectPoint.y / gridSizeInProjectCoords) * gridSizeInProjectCoords;
+                const gridSize = GRID_SIZE;
+                projectPoint.x = Math.round(projectPoint.x / gridSize) * gridSize;
+                projectPoint.y = Math.round(projectPoint.y / gridSize) * gridSize;
             }
             
             if (dragTarget.type === 'segment') {
@@ -184,12 +193,30 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
     }, [paperScope, editMode, isSnapEnabled, showGrid]);
 
     const handleMouseUp = useCallback(() => {
-        if (!paperScope) return;
+        if (!paperScope || editMode === 'pen') return;
         
+        if (selectionRectangleRef.current) {
+            const rect = selectionRectangleRef.current.bounds;
+            paperScope.project.getItems({
+                overlapping: rect,
+                inside: rect.area === 0, // if it's just a click, select inside
+            }).forEach((item: paper.Item) => {
+                let artwork = item;
+                 while(artwork.parent && !artwork.data.isArtwork) {
+                    artwork = artwork.parent;
+                }
+                if(artwork.data.isArtwork && !artwork.layer.data.locked) {
+                    artwork.selected = true;
+                }
+            });
+
+            selectionRectangleRef.current.remove();
+            selectionRectangleRef.current = null;
+        }
+
         panState.current.isPanning = false;
         pointDragTargetRef.current = null;
         artworkDragTargetRef.current = null;
-
 
         const canvas = paperScope.view.element;
         if (isSpacePressed.current) {
@@ -197,7 +224,10 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         } else {
             canvas.style.cursor = 'default';
         }
-    }, [paperScope]);
+
+        onSelectionChange(paperScope.project.selectedItems.length);
+        onItemSelected(paperScope.project.selectedItems.length === 1 ? paperScope.project.selectedItems[0] : null);
+    }, [paperScope, editMode, onSelectionChange, onItemSelected]);
 
     const handleKeyDown = useCallback((event: KeyboardEvent) => {
         if (!paperScope || event.repeat) return;
@@ -228,29 +258,31 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         if (!paperScope) return;
 
         const canvas = paperScope.view.element;
+        const tool = new paperScope.Tool();
+        tool.activate();
+
         if (!canvas) return;
         
-        // Clear previous selections when edit mode changes
         paperScope.project.deselectAll();
+        onSelectionChange(0);
+        onItemSelected(null);
 
         canvas.addEventListener('wheel', handleWheel, { passive: false });
-        canvas.addEventListener('mousedown', handleMouseDown);
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
+        tool.onMouseDown = handleMouseDown;
+        tool.onMouseDrag = handleMouseMove;
+        tool.onMouseUp = handleMouseUp;
         document.addEventListener('keydown', handleKeyDown);
         document.addEventListener('keyup', handleKeyUp);
 
-        canvas.style.cursor = 'default';
+        canvas.style.cursor = editMode === 'pen' ? 'crosshair' : 'default';
 
         return () => {
             canvas.removeEventListener('wheel', handleWheel);
-            canvas.removeEventListener('mousedown', handleMouseDown);
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+            tool.remove();
             document.removeEventListener('keydown', handleKeyDown);
             document.removeEventListener('keyup', handleKeyUp);
         };
-    }, [paperScope, handleWheel, handleMouseDown, handleMouseMove, handleMouseUp, handleKeyDown, handleKeyUp, editMode]);
+    }, [paperScope, handleWheel, handleMouseDown, handleMouseMove, handleMouseUp, handleKeyDown, handleKeyUp, editMode, onSelectionChange, onItemSelected]);
 
     return null;
 };

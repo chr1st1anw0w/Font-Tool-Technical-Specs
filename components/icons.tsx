@@ -166,3 +166,102 @@ export const ChevronDownIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) 
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
     </svg>
 );
+
+export const BrainIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v0A2.5 2.5 0 0 1 9.5 7h-3A2.5 2.5 0 0 1 4 4.5v0A2.5 2.5 0 0 1 6.5 2h3Z" />
+        <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v0A2.5 2.5 0 0 0 14.5 7h3A2.5 2.5 0 0 0 20 4.5v0A2.5 2.5 0 0 0 17.5 2h-3Z" />
+        <path d="M4.2 11.8a2.5 2.5 0 0 0-2.4 2.5v.4a2.5 2.5 0 0 0 2.5 2.5h2.4a2.5 2.5 0 0 1 2.5 2.5v.4a2.5 2.5 0 0 1-2.5 2.5h-3a2.5 2.5 0 0 1-2.5-2.5v-.4a2.5 2.5 0 0 1 2.5-2.5h2.4a2.5 2.5 0 0 0 2.5-2.5v-.4a2.5 2.5 0 0 0-2.5-2.5h-3a2.5 2.5 0 0 0-2.5 2.5v.4Z" />
+        <path d="M19.8 11.8a2.5 2.5 0 0 1 2.4 2.5v.4a2.5 2.5 0 0 1-2.5 2.5h-2.4a2.5 2.5 0 0 0-2.5 2.5v.4a2.5 2.5 0 0 0 2.5 2.5h3A2.5 2.5 0 0 0 22 19.1v-.4a2.5 2.5 0 0 0-2.5-2.5h-2.4a2.5 2.5 0 0 1-2.5-2.5v-.4a2.5 2.5 0 0 1 2.5-2.5h3a2.5 2.5 0 0 1 2.5 2.5v.4Z" />
+    </svg>
+);
+
+export const UndoIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11 15l-3-3m0 0l3-3m-3 3h8A5 5 0 0119 9a5 5 0 01-2.3 4.3" />
+    </svg>
+);
+
+export const RedoIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 15l3-3m0 0l-3-3m3 3H5a5 5 0 01-2.7-9.3" />
+    </svg>
+);
+
+export const ListIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+    </svg>
+);
+
+export const ColorSwatchIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+  </svg>
+);
+
+export const UniteIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.78 14.22a2.5 2.5 0 0 0-2.2-4.68h-1.2a4.5 4.5 0 0 0-8.58-1.58A4.5 4.5 0 0 0 3 12.5a4.5 4.5 0 0 0 4.5 4.5h1.22"/>
+    <path d="M16.5 14.5a2.5 2.5 0 0 1 2.5-2.5h2.5a2.5 2.5 0 0 1 0 5h-2.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+  </svg>
+);
+
+export const SubtractIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 12h6"/>
+    <path d="M20.78 14.22a2.5 2.5 0 0 0-2.2-4.68h-1.2a4.5 4.5 0 0 0-8.58-1.58A4.5 4.5 0 0 0 3 12.5a4.5 4.5 0 0 0 4.5 4.5h1.22"/>
+    <circle cx="16.5" cy="14.5" r="2.5"/>
+  </svg>
+);
+
+export const IntersectIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.78 14.22a2.5 2.5 0 0 0-2.2-4.68h-1.2a4.5 4.5 0 0 0-8.58-1.58A4.5 4.5 0 0 0 3 12.5a4.5 4.5 0 0 0 4.5 4.5h1.22"/>
+    <path d="M16.5 14.5a2.5 2.5 0 0 1-2.5-2.5h-2.5a2.5 2.5 0 0 1 0-5h2.5a2.5 2.5 0 0 1 2.5 2.5Z"/>
+  </svg>
+);
+
+export const BevelIcon: React.FC<IconProps> = ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l6 6v8a2 2 0 0 1-2 2z"></path>
+        <path d="M14 4l6 6h-6V4z"></path>
+    </svg>
+);
+
+export const NoBevelIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 21L21 3L21 21L3 21Z"/>
+    </svg>
+);
+export const ChamferIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 21L15 3H21V9L9 21H3Z"/>
+    </svg>
+);
+export const FilletIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 21H12C16.9706 21 21 16.9706 21 12V3"/>
+    </svg>
+);
+export const InsetSquareIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3L21 21"/>
+        <path d="M15 3H21V9"/>
+        <path d="M9 21H3V15"/>
+    </svg>
+);
+export const InsetChamferIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3L21 21"/>
+        <path d="M17 3L21 7"/>
+        <path d="M7 21L3 17"/>
+    </svg>
+);
+export const InsetRoundIcon: React.FC<IconProps> = ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3L21 21"/>
+        <path d="M19 3A4 4 0 0 1 21 5"/>
+        <path d="M5 21A4 4 0 0 1 3 19"/>
+    </svg>
+);

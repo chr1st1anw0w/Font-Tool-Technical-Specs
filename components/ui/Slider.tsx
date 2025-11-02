@@ -25,11 +25,14 @@ const Slider: React.FC<SliderProps> = ({
   className,
 }) => {
   const [inputValue, setInputValue] = useState(value.toString());
+  const [isInvalid, setIsInvalid] = useState(false);
 
   useEffect(() => {
     // Only update input value if it's not currently focused
-    if (document.activeElement?.tagName !== 'INPUT' || document.activeElement?.id !== `slider-input-${label}`) {
+    // This prevents the input from changing while the user is typing
+    if (document.activeElement?.id !== `slider-input-${label}`) {
       setInputValue(value.toFixed(0));
+      setIsInvalid(false); // Reset validation state when value is synced from props
     }
   }, [value, label]);
 
@@ -39,17 +42,33 @@ const Slider: React.FC<SliderProps> = ({
   }, [onChange]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-  }, []);
+    const currentInputValue = e.target.value;
+    setInputValue(currentInputValue);
+    
+    // Allow empty input or negative sign for typing, but treat as invalid for feedback
+    if (currentInputValue.trim() === '' || currentInputValue === '-') {
+        setIsInvalid(true);
+        return;
+    }
+
+    const numValue = parseFloat(currentInputValue);
+    if (isNaN(numValue) || numValue < min || numValue > max) {
+      setIsInvalid(true);
+    } else {
+      setIsInvalid(false);
+    }
+  }, [min, max]);
 
   const handleInputBlur = useCallback(() => {
     let numValue = parseFloat(inputValue);
     if (isNaN(numValue)) {
-      numValue = value;
+      numValue = value; // Reset to current valid value if input is not a number
     }
+    // Clamp the value to be within min/max bounds
     const clampedValue = Math.min(Math.max(numValue, min), max);
     onChange(clampedValue);
     setInputValue(clampedValue.toFixed(0));
+    setIsInvalid(false); // Reset validation state on blur
   }, [inputValue, min, max, value, onChange]);
 
   const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -58,6 +77,7 @@ const Slider: React.FC<SliderProps> = ({
       (e.target as HTMLInputElement).blur();
     } else if (e.key === 'Escape') {
       setInputValue(value.toFixed(0));
+      setIsInvalid(false);
       (e.target as HTMLInputElement).blur();
     }
   }, [handleInputBlur, value]);
@@ -70,7 +90,12 @@ const Slider: React.FC<SliderProps> = ({
         <label htmlFor={`slider-input-${label}`} className="text-sm font-medium text-gray-700">
           {label}
         </label>
-        <div className="flex items-center border border-[var(--input-border)] rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-[var(--input-focus-ring)] focus-within:border-[var(--input-focus-ring)] transition-all">
+        <div className={clsx(
+            "flex items-center border rounded-md overflow-hidden transition-all",
+            isInvalid 
+                ? "border-red-400 ring-2 ring-red-200"
+                : "border-[var(--input-border)] focus-within:ring-2 focus-within:ring-[var(--input-focus-ring)] focus-within:border-[var(--input-focus-ring)]"
+        )}>
             <input
                 id={`slider-input-${label}`}
                 type="number"

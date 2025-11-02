@@ -1,9 +1,9 @@
 import React from 'react';
 
-const MagicPathLogo: React.FC<{className?: string}> = ({ className }) => (
+const ChristianWuLogo: React.FC<{className?: string}> = ({ className }) => (
     <svg 
         className={className}
-        viewBox="0 0 100 20" 
+        viewBox="0 0 140 20" 
         xmlns="http://www.w3.org/2000/svg"
         fill="currentColor"
     >
@@ -14,9 +14,9 @@ const MagicPathLogo: React.FC<{className?: string}> = ({ className }) => (
             fontSize="16" 
             fontWeight="bold"
         >
-            MagicPath
+            Christian Wu
         </text>
     </svg>
 );
 
-export default MagicPathLogo;
+export default ChristianWuLogo;

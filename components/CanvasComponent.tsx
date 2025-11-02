@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import clsx from 'clsx';
-import type { TransformParams, ViewOptions, Layer } from '../types';
+import type { TransformParams, ViewOptions, Layer, PenToolSettings } from '../types';
 import CanvasRenderer from './CanvasRenderer';
 import CanvasInteraction from './CanvasInteraction';
 import GeometryManager from './GeometryManager';
+import { PenTool } from './PenTool';
 import { FileCodeIcon } from './icons';
+import paper from 'paper';
 
 interface CanvasComponentProps {
     svgData: { data: string; id: number } | null;
@@ -13,11 +15,15 @@ interface CanvasComponentProps {
     viewOptions: ViewOptions;
     onReady: (scope: any) => void;
     onZoomChange: (zoom: number) => void;
-    editMode: 'transform' | 'points';
+    editMode: 'transform' | 'points' | 'pen';
     isSnapEnabled: boolean;
     showGrid: boolean;
     layers: Layer[];
     activeLayerId: string | null;
+    penSettings: PenToolSettings;
+    onPathComplete: (path: paper.Path) => void;
+    onSelectionChange: (count: number) => void;
+    onItemSelected: (item: paper.Item | null) => void;
 }
 
 const CanvasComponent: React.FC<CanvasComponentProps> = ({
@@ -31,7 +37,11 @@ const CanvasComponent: React.FC<CanvasComponentProps> = ({
     isSnapEnabled,
     showGrid,
     layers,
-    activeLayerId
+    activeLayerId,
+    penSettings,
+    onPathComplete,
+    onSelectionChange,
+    onItemSelected,
 }) => {
     const [paperScope, setPaperScope] = useState<any>(null);
 
@@ -40,16 +50,11 @@ const CanvasComponent: React.FC<CanvasComponentProps> = ({
         onReady(scope);
     }, [onReady]);
 
-    const handleGeometryUpdate = useCallback((paramKey: string, newValue: number) => {
-        // Handle geometry updates if needed
-        console.log(`Geometry updated: ${paramKey} = ${newValue}`);
-    }, []);
-
     const hasContent = paperScope?.project.layers.some((l: paper.Layer) => l.hasChildren());
 
     return (
         <div className={clsx("flex-grow h-full flex items-center justify-center relative overflow-hidden", showGrid && "canvas-grid")}>
-            {hasContent || svgData ? (
+            {hasContent || svgData || editMode === 'pen' ? (
                 <>
                     <CanvasRenderer
                         svgData={svgData}
@@ -67,14 +72,23 @@ const CanvasComponent: React.FC<CanvasComponentProps> = ({
                                 isSnapEnabled={isSnapEnabled}
                                 showGrid={showGrid}
                                 layers={layers}
+                                onSelectionChange={onSelectionChange}
+                                onItemSelected={onItemSelected}
                             />
                             <GeometryManager
                                 paperScope={paperScope}
                                 letterKey={letterKey}
                                 params={params}
                                 viewOptions={viewOptions}
-                                onGeometryUpdate={handleGeometryUpdate}
                             />
+                            {editMode === 'pen' && (
+                                <PenTool
+                                    scope={paperScope}
+                                    settings={penSettings}
+                                    onPathComplete={onPathComplete}
+                                    onCancel={() => {}}
+                                />
+                            )}
                         </>
                     )}
                 </>

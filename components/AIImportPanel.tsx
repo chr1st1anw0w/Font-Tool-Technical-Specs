@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SparklesIcon } from './icons';
+import { SparklesIcon, BrainIcon } from './icons';
 import { aiService } from '../services/aiService';
 
 interface AIImportPanelProps {
@@ -8,18 +8,19 @@ interface AIImportPanelProps {
 
 const AIImportPanel: React.FC<AIImportPanelProps> = ({ onImportSVG }) => {
     const [prompt, setPrompt] = useState('');
+    const [useThinkingMode, setUseThinkingMode] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const handleGenerate = async () => {
         if (!prompt.trim()) {
-            setError("請輸入字母的描述。");
+            setError("請輸入描述。");
             return;
         }
         setIsGenerating(true);
         setError(null);
         try {
-            const svgString = await aiService.textToSVG(prompt);
+            const svgString = await aiService.textToSVG(prompt, useThinkingMode);
             onImportSVG(svgString);
             setPrompt(''); // Clear prompt on success
         } catch (err) {
@@ -43,10 +44,24 @@ const AIImportPanel: React.FC<AIImportPanelProps> = ({ onImportSVG }) => {
                 <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="例如：一個粗獷、具未來感的字母 'X'"
+                    placeholder="例如：一個未來感的字母 'X'，或 '一個 300x50px 的圓角矩形'"
                     className="w-full h-20 p-2 text-xs font-mono bg-white border border-gray-200 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                     disabled={isGenerating}
                 />
+                 <div className="flex items-center space-x-2">
+                    <input
+                        type="checkbox"
+                        id="thinking-mode"
+                        checked={useThinkingMode}
+                        onChange={(e) => setUseThinkingMode(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        disabled={isGenerating}
+                    />
+                    <label htmlFor="thinking-mode" className="flex items-center text-xs text-gray-600 cursor-pointer">
+                        <BrainIcon className="w-4 h-4 mr-1.5 text-purple-500" />
+                        啟用深度思考模式
+                    </label>
+                </div>
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
