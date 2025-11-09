@@ -29,16 +29,20 @@ export class SuperBevelService {
         return crossProduct < 0 ? CornerType.CONVEX : CornerType.CONCAVE;
     }
 
-    public apply(path: paper.Path, params: TransformParams): paper.Path {
-        const { bevelType, bevelSize } = params;
-        if (bevelType === BevelType.NONE || bevelSize <= 0) {
-            return path.clone({ insert: false });
-        }
-
+    public apply(path: paper.Path, originalId: number, params: TransformParams, nodeOverrides: Map<string, Partial<TransformParams>>): paper.Path {
         let beveledPath : paper.PathItem = path.clone({ insert: false });
         
         const concaveInsets: paper.Path[] = [];
         path.segments.forEach(segment => {
+            const segmentId = `${originalId}-${segment.index}`;
+            const override = nodeOverrides.get(segmentId);
+            
+            const bevelType = override?.bevelType ?? params.bevelType;
+            if (override && bevelType === BevelType.NONE) return;
+
+            const bevelSize = override?.bevelSize ?? params.bevelSize;
+            if (bevelType === BevelType.NONE || bevelSize <= 0) return;
+
             const cornerType = this.detectCornerType(segment);
             if (cornerType === CornerType.CONCAVE) {
                 const insetShape = this.createConcaveInset(segment, bevelSize, bevelType);
@@ -56,24 +60,31 @@ export class SuperBevelService {
             });
             beveledPath = tempPath;
         }
+        
+        const globalBevelType = params.bevelType;
 
-        if ( (bevelType === BevelType.FILLET || bevelType === BevelType.CHAMFER) && beveledPath instanceof this.scope.Path) {
+        if ((globalBevelType === BevelType.FILLET || globalBevelType === BevelType.CHAMFER || nodeOverrides.size > 0) && beveledPath instanceof this.scope.Path) {
             const newPath = new this.scope.Path({insert: false});
             const pathRef = beveledPath as paper.Path;
 
             pathRef.curves.forEach((curve: paper.Curve, index: number) => {
                 const segment = curve.segment1;
+                const segmentId = `${originalId}-${segment.index}`;
+                const override = nodeOverrides.get(segmentId);
+                
+                const bevelType = override?.bevelType ?? globalBevelType;
+                const bevelSize = override?.bevelSize ?? params.bevelSize;
+
                 const cornerType = this.detectCornerType(segment);
                 
                 if (index === 0) newPath.moveTo(curve.point1);
 
-                if (cornerType === CornerType.CONVEX) {
+                if (cornerType === CornerType.CONVEX && bevelSize > 0 && (bevelType === BevelType.FILLET || bevelType === BevelType.CHAMFER)) {
                     const offset = Math.min(bevelSize, curve.length / 2, curve.previous.length / 2);
                     if (offset > 0) {
                         const from = curve.previous.getPointAt(curve.previous.length - offset);
                         const to = curve.getPointAt(offset);
                         
-                        // Replace the segment point with the start of the bevel
                         if (newPath.lastSegment) {
                            newPath.lastSegment.point = from;
                         }
@@ -92,15 +103,20 @@ export class SuperBevelService {
             });
 
             if(pathRef.closed) {
-                 // Final curve
                 const lastCurve = pathRef.curves[pathRef.curves.length - 1];
                 const lastSegment = lastCurve.segment2;
+                const segmentId = `${originalId}-${lastSegment.index}`;
+                const override = nodeOverrides.get(segmentId);
+
+                const bevelType = override?.bevelType ?? globalBevelType;
+                const bevelSize = override?.bevelSize ?? params.bevelSize;
+
                  const cornerType = this.detectCornerType(lastSegment);
-                  if (cornerType === CornerType.CONVEX) {
+                  if (cornerType === CornerType.CONVEX && bevelSize > 0 && (bevelType === BevelType.FILLET || bevelType === BevelType.CHAMFER)) {
                      const offset = Math.min(bevelSize, lastCurve.length / 2, pathRef.curves[0].length / 2);
                       if (offset > 0) {
                         const from = lastCurve.getPointAt(lastCurve.length - offset);
-                        newPath.lastSegment.point = from;
+                        if (newPath.lastSegment) newPath.lastSegment.point = from;
                         const to = pathRef.curves[0].getPointAt(offset);
 
                          if (bevelType === BevelType.FILLET) {

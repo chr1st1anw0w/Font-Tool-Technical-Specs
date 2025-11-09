@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import paper from 'paper';
-import type { TransformParams, Layer } from '../types';
+import type { TransformParams, Layer, SvgData } from '../types';
 
 interface CanvasRendererProps {
-    svgData: { data: string; id: number } | null;
+    svgData: SvgData;
     params: TransformParams;
     onReady: (scope: any) => void;
     layers: Layer[];
@@ -107,6 +107,10 @@ const CanvasRenderer: React.FC<CanvasRendererProps> = ({ svgData, params, onRead
                         
                         // Center the item in the view
                         artwork.position = scope.view.center;
+
+                        if (svgData.offset) {
+                            artwork.position = artwork.position.add(new scope.Point(svgData.offset));
+                        }
 
                         // Apply current parameters for the first time
                         if (scope.updateItemTransformation) {

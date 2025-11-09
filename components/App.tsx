@@ -1,27 +1,28 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import CanvasComponent from './components/CanvasComponent';
-import ControlPanel from './components/ControlPanel';
-import Sidebar from './components/Sidebar';
-import ErrorBoundary from './components/ErrorBoundary';
-import PerformanceMonitor from './components/PerformanceMonitor';
-import type { TransformParams, ViewOptions, Layer, PenToolSettings, SvgData } from './types';
-import { BevelType } from './types';
+import CanvasComponent from './CanvasComponent';
+import ControlPanel from './ControlPanel';
+import Sidebar from './Sidebar';
+import ErrorBoundary from './ErrorBoundary';
+import PerformanceMonitor from './PerformanceMonitor';
+import type { TransformParams, ViewOptions, Layer, PenToolSettings, SvgData } from '../types';
+import { BevelType } from '../types';
 import {
-    CopyIcon, GridIcon, PanelsIcon,
+    CopyIcon, DownloadIcon, GridIcon, GuidesIcon, PanelsIcon,
     PlusIcon, MinusIcon, RefreshIcon, PenToolIcon, TrashIcon,
     UndoIcon, RedoIcon, UniteIcon, SubtractIcon, IntersectIcon, PasteIcon,
-    SelectionIcon, DirectSelectionIcon, SelectAllIcon,
-    SparklesIcon, LayersIcon, SettingsIcon
-} from './components/icons';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { useLocalStorage } from './hooks/useLocalStorage';
-import useHistory from './hooks/useHistory';
+    GroupIcon, UngroupIcon, BringToFrontIcon, SendToBackIcon, FlipHorizontalIcon, FlipVerticalIcon,
+    CodeIcon, SelectionIcon, DirectSelectionIcon, SelectAllIcon,
+    SparklesIcon, LayersIcon, SettingsIcon, CheckCircleIcon, CopyPropertiesIcon, PastePropertiesIcon
+} from './icons';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import useHistory from '../hooks/useHistory';
 import clsx from 'clsx';
 import paper from 'paper';
-import ContextMenu, { MenuItem } from './components/ui/ContextMenu';
-import ResizeHandle from './components/ui/ResizeHandle';
+import ContextMenu, { MenuItem } from './ui/ContextMenu';
+import ResizeHandle from './ui/ResizeHandle';
 
 type EditMode = 'transform' | 'points' | 'pen';
 type BooleanOperation = 'unite' | 'subtract' | 'intersect';
@@ -34,6 +35,7 @@ const MAX_ZOOM = 16;
 const MIN_PANEL_WIDTH = 240;
 const MAX_PANEL_WIDTH = 500;
 
+// FIX: Added a helper component for consistent button styling in the header.
 const IconButton: React.FC<{
     onClick?: () => void;
     disabled?: boolean;
@@ -47,11 +49,12 @@ const IconButton: React.FC<{
         disabled={disabled}
         title={tooltip}
         className={clsx(
-            'p-2 rounded-md transition-all duration-200',
-            active
-                ? 'bg-[var(--accent-primary)] text-white shadow-sm'
-                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-panel-hover)] hover:text-[var(--text-primary)]',
-            disabled && 'opacity-40 cursor-not-allowed hover:bg-transparent hover:text-[var(--text-secondary)]',
+            'p-2 rounded-md transition-colors',
+            {
+                'bg-blue-100 text-blue-600': active,
+                'hover:bg-gray-200': !active && !disabled,
+                'opacity-50 cursor-not-allowed': disabled,
+            },
             className
         )}
     >
@@ -79,8 +82,8 @@ const App: React.FC = () => {
             width: 100,
             slant: 0,
             strokeWidth: 0,
-            strokeColor: '#FFFFFF',
-            fillColor: '#646CFF',
+            strokeColor: '#000000',
+            fillColor: '#000000',
             opacity: 1,
             bevelType: BevelType.NONE,
             bevelSize: 8,
@@ -114,7 +117,7 @@ const App: React.FC = () => {
     
     const [penSettings, setPenSettings] = useState<PenToolSettings>({
         strokeWidth: 2,
-        strokeColor: '#FFFFFF',
+        strokeColor: '#000000',
         fillColor: null,
     });
     const [numSelectedItems, setNumSelectedItems] = useState(0);
@@ -122,7 +125,7 @@ const App: React.FC = () => {
     const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
 
-    const [panelWidths, setPanelWidths] = useLocalStorage('skywalk-panel-widths', { sidebar: 280, controlPanel: 300 });
+    const [panelWidths, setPanelWidths] = useLocalStorage('skywalk-panel-widths', { sidebar: 256, controlPanel: 280 });
 
     const paperScopeRef = useRef<any>(null);
     const internalClipboardRef = useRef<string | null>(null);
@@ -169,7 +172,7 @@ const App: React.FC = () => {
 
     const handleResetNodeOverrides = useCallback((segmentIds: string[]) => {
         setHistoryState(prev => {
-            const newOverrides = new Map(prev.nodeOverrides);
+            const newOverrides = new Map<string, Partial<TransformParams>>(prev.nodeOverrides);
             segmentIds.forEach(id => {
                 newOverrides.delete(id);
             });
@@ -260,6 +263,20 @@ const App: React.FC = () => {
         }
     }, [showNotification]);
     
+    const handleCopySVG = useCallback(async () => {
+        if (paperScopeRef.current) {
+            try {
+                paperScopeRef.current.project.deselectAll();
+                const svgString = paperScopeRef.current.project.exportSVG({ asString: true });
+                await navigator.clipboard.writeText(svgString);
+                showNotification('SVG 程式碼已複製到剪貼簿');
+            } catch (error) {
+                showNotification('複製失敗，請再試一次');
+                console.error('Copy SVG failed:', error);
+            }
+        }
+    }, [showNotification]);
+
     const handleZoomIn = useCallback(() => {
         if (!paperScopeRef.current) return;
         const view = paperScopeRef.current.view;
@@ -383,18 +400,23 @@ const App: React.FC = () => {
         const scope = paperScopeRef.current;
         if (!scope) return;
     
+        // A set to keep track of paths that have been modified
+        const modifiedPaths = new Set<paper.Path>();
+    
+        // First, handle selected segments
         const selectedSegments = scope.project.getItems({ selected: true, class: scope.Segment });
         if (selectedSegments.length > 0) {
-             const segmentsByPath = new Map<paper.Path, paper.Segment[]>();
+            const segmentsByPath = new Map<paper.Path, paper.Segment[]>();
             selectedSegments.forEach((seg: paper.Segment) => {
                 if (!segmentsByPath.has(seg.path)) {
                     segmentsByPath.set(seg.path, []);
                 }
                 segmentsByPath.get(seg.path)!.push(seg);
             });
+    
             let removedCount = 0;
-            const modifiedPaths = new Set<paper.Path>();
             segmentsByPath.forEach((segments, path) => {
+                // Keep at least 2 segments for a path to be valid
                 if (path.segments.length - segments.length >= 2) {
                     segments.forEach(seg => {
                         seg.remove();
@@ -403,6 +425,7 @@ const App: React.FC = () => {
                     modifiedPaths.add(path);
                 }
             });
+    
             if (removedCount > 0) {
                 showNotification(`${removedCount} 個節點已刪除`);
                 modifiedPaths.forEach(path => {
@@ -415,10 +438,11 @@ const App: React.FC = () => {
                     }
                 });
                 handleSelectionUpdate({ items: scope.project.selectedItems, segments: [] });
-                return;
+                return; // Don't proceed to delete the whole item
             }
         }
     
+        // If no segments were deleted, proceed to delete whole items
         const selectedItems = scope.project.selectedItems;
         if (selectedItems.length > 0) {
             const count = selectedItems.length;
@@ -431,21 +455,63 @@ const App: React.FC = () => {
     const handleCopyItems = useCallback(() => {
         const scope = paperScopeRef.current;
         if (!scope || scope.project.selectedItems.length === 0) return;
+
         const selected = scope.project.selectedItems.filter((item: paper.Item) => item.data.isArtwork);
         if (selected.length === 0) return;
+
+        // Create a temporary group to export multiple items as one SVG
         const group = new scope.Group(selected);
         const svgString = group.exportSVG({ asString: true });
-        group.remove(); 
+        group.remove(); // Clean up the temporary group
+        
         internalClipboardRef.current = svgString;
         showNotification(`${selected.length} 個物件已複製`);
     }, [showNotification]);
 
     const handlePasteItems = useCallback(async () => {
-         let pasted = false;
+        let pasted = false;
         try {
             const clipboardItems = await navigator.clipboard.read();
             for (const item of clipboardItems) {
-                if (item.types.includes('text/plain')) {
+                if (item.types.includes('text/html')) {
+                    const blob = await item.getType('text/html');
+                    const htmlText = await blob.text();
+                    
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = htmlText;
+                    const img = tempDiv.querySelector('img[src^="data:image/svg+xml"]');
+
+                    if (img) {
+                        const src = img.getAttribute('src');
+                        if (src) {
+                            let svgString = '';
+                            const parts = src.split(',');
+                            const header = parts[0];
+                            const data = parts.slice(1).join(','); 
+
+                            if (data) {
+                                try {
+                                    if (header.includes(';base64')) {
+                                        // Handle base64 encoded SVG
+                                        svgString = atob(data);
+                                    } else {
+                                        // Handle URL-encoded SVG
+                                        svgString = decodeURIComponent(data);
+                                    }
+                                } catch (e) {
+                                    console.error("Error decoding SVG data from clipboard:", e);
+                                }
+                            }
+                            
+                            if (svgString) {
+                                handleSelectLetter(`pasted-figma-${Date.now()}`, svgString, pasteOffset.current);
+                                pasteOffset.current = { x: pasteOffset.current.x + 20, y: pasteOffset.current.y + 20 };
+                                pasted = true;
+                                break;
+                            }
+                        }
+                    }
+                } else if (item.types.includes('text/plain')) {
                     const blob = await item.getType('text/plain');
                     const text = await blob.text();
                     if (text.trim().startsWith('<svg')) {
@@ -457,7 +523,7 @@ const App: React.FC = () => {
                 }
             }
         } catch (err) {
-            // console.warn("讀取剪貼簿失敗", err);
+            console.warn("讀取剪貼簿失敗，可能是權限問題或瀏覽器不支援。", err);
         }
 
         if (!pasted && internalClipboardRef.current) {
@@ -474,6 +540,7 @@ const App: React.FC = () => {
     const handleSelectAll = useCallback(() => {
         const scope = paperScopeRef.current;
         if (!scope || !activeLayerId) return;
+
         const activePaperLayer = scope.project.layers.find((l: paper.Layer) => l.data.id === activeLayerId);
         if (activePaperLayer) {
             scope.project.deselectAll();
@@ -508,16 +575,18 @@ const App: React.FC = () => {
         const scope = paperScopeRef.current;
         if (!scope) return;
         const selected = scope.project.selectedItems.filter((item: paper.Item) => item.data.isArtwork);
-        if (selected.length > 1) { 
+        
+        if (selected.length > 1) { // Grouping
             const group = new scope.Group(selected);
             group.data.isArtwork = true;
             showNotification('物件已群組');
-        } else if (selected.length === 1 && selected[0] instanceof scope.Group) {
+        } else if (selected.length === 1 && selected[0] instanceof scope.Group) { // Ungrouping
             const group = selected[0];
             group.parent.insertChildren(group.index, group.removeChildren());
             group.remove();
             showNotification('物件已解散群組');
         }
+
         handleSelectionUpdate({
             items: scope.project.selectedItems,
             segments: scope.project.getItems({ selected: true, class: scope.Segment })
@@ -543,6 +612,7 @@ const App: React.FC = () => {
         if (!scope) return;
         const selected = scope.project.selectedItems;
         if (selected.length === 0) return;
+
         let totalBounds = selected[0].bounds;
         for (let i = 1; i < selected.length; i++) {
             totalBounds = totalBounds.unite(selected[i].bounds);
@@ -557,6 +627,7 @@ const App: React.FC = () => {
         if (!scope) return;
         const selected = scope.project.selectedItems;
         if (selected.length === 0) return;
+        
         let totalBounds = selected[0].bounds;
         for (let i = 1; i < selected.length; i++) {
             totalBounds = totalBounds.unite(selected[i].bounds);
@@ -573,10 +644,77 @@ const App: React.FC = () => {
 
     const handleContextMenu = useCallback((event: React.MouseEvent) => {
         event.preventDefault();
-        // ... (keep existing context menu logic or simplify if preferred)
-         // For brevity, not fully re-implementing detailed context menu here,
-         // assuming standard copy/paste/delete is sufficient for visual update context.
-    }, []);
+        
+        const scope = paperScopeRef.current;
+        if (!scope) return;
+        
+        const selected = scope.project.selectedItems.filter((item: paper.Item) => item.data.isArtwork);
+        const numSelected = selected.length;
+        
+        let items: MenuItem[] = [];
+
+        // Group 1: Clipboard
+        items.push({ label: '貼上', icon: <PasteIcon />, action: handlePasteItems, shortcut: 'Cmd+V' });
+        if (numSelected > 0) {
+            items.push({ label: '複製', icon: <CopyIcon />, action: handleCopyItems, shortcut: 'Cmd+C' });
+            items.push({
+                label: '複製為...',
+                icon: <CopyIcon />,
+                children: [
+                    { label: 'SVG 程式碼', icon: <CodeIcon />, action: handleCopySVG },
+                    // PNG export not implemented yet for context menu specifically, could reuse handleExportPNG if adapted
+                ]
+            });
+            items.push({ type: 'divider' });
+            items.push({ label: '複製屬性', icon: <CopyPropertiesIcon />, action: handleCopyProperties, shortcut: 'Alt+Cmd+C' });
+            items.push({ label: '貼上屬性', icon: <PastePropertiesIcon />, action: handlePasteProperties, shortcut: 'Alt+Cmd+V', disabled: !propertiesClipboardRef.current });
+            items.push({ type: 'divider' });
+            items.push({ label: '刪除', icon: <TrashIcon />, action: handleDeleteSelected, shortcut: 'Delete' });
+        }
+        items.push({ label: '全選', icon: <SelectAllIcon />, action: handleSelectAll, shortcut: 'Cmd+A' });
+        items.push({ type: 'divider' });
+
+
+        // Group 2: Arrange & Group
+        if (numSelected > 0) {
+            items.push({ label: '移至最上層', icon: <BringToFrontIcon />, action: handleBringToFront });
+            items.push({ label: '移至最下層', icon: <SendToBackIcon />, action: handleSendToBack });
+            
+            const isGroupSelected = numSelected === 1 && selected[0] instanceof scope.Group;
+            if (numSelected > 1 || isGroupSelected) {
+                 items.push({ label: isGroupSelected ? '解散群組' : '建立群組', icon: isGroupSelected ? <UngroupIcon /> : <GroupIcon />, action: handleGroup, shortcut: 'Cmd+G' });
+            }
+        }
+        
+        // Group 3: Path Operations
+        if (numSelected >= 1) {
+             items.push({ label: '扁平化', icon: <UniteIcon />, action: handleFlatten });
+        }
+        if (numSelected >= 2) {
+            items.push({ label: '合併 (Unite)', icon: <UniteIcon />, action: () => handleBooleanOperation('unite') });
+            items.push({ label: '裁切 (Subtract)', icon: <SubtractIcon />, action: () => handleBooleanOperation('subtract') });
+            items.push({ label: '交集 (Intersect)', icon: <IntersectIcon />, action: () => handleBooleanOperation('intersect') });
+        }
+        if (numSelected > 0) {
+            items.push({ type: 'divider' });
+        }
+        
+        // Group 4: Transform
+        if (numSelected > 0) {
+            items.push({ label: '水平翻轉', icon: <FlipHorizontalIcon />, action: handleFlipHorizontal });
+            items.push({ label: '垂直翻轉', icon: <FlipVerticalIcon />, action: handleFlipVertical });
+            items.push({ type: 'divider' });
+        }
+
+        // Group 5: General
+        items.push({ label: '復原', icon: <UndoIcon />, action: undo, disabled: !canUndo, shortcut: 'Cmd+Z' });
+        items.push({ label: '重做', icon: <RedoIcon />, action: redo, disabled: !canRedo, shortcut: 'Cmd+Shift+Z' });
+        items.push({ type: 'divider' });
+        items.push({ label: '重設視圖', icon: <RefreshIcon />, action: handleZoomReset, shortcut: 'Cmd+0' });
+        items.push({ label: '清空畫布', icon: <TrashIcon />, action: handleClearCanvas, disabled: !canvasHasContent });
+    
+        setContextMenu({ x: event.clientX, y: event.clientY, items });
+    }, [canvasHasContent, canUndo, canRedo, handlePasteItems, handleCopyItems, handleCopySVG, handleDeleteSelected, handleSelectAll, handleBringToFront, handleSendToBack, handleGroup, handleFlatten, handleBooleanOperation, handleFlipHorizontal, handleFlipVertical, undo, redo, handleZoomReset, handleClearCanvas, handleCopyProperties, handlePasteProperties]);
 
     const closeContextMenu = useCallback(() => {
         setContextMenu(null);
@@ -600,12 +738,31 @@ const App: React.FC = () => {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+            if (
+                document.activeElement?.tagName === 'INPUT' ||
+                document.activeElement?.tagName === 'TEXTAREA'
+            ) {
+                return;
+            }
+
             switch (e.key.toLowerCase()) {
-                case 'v': e.preventDefault(); setEditMode('transform'); break;
-                case 'a': e.preventDefault(); setEditMode('points'); break;
-                case 'p': e.preventDefault(); setEditMode('pen'); break;
-                case 'delete': case 'backspace': e.preventDefault(); handleDeleteSelected(); break;
+                case 'v':
+                    e.preventDefault();
+                    setEditMode('transform');
+                    break;
+                case 'a':
+                    e.preventDefault();
+                    setEditMode('points');
+                    break;
+                case 'p':
+                    e.preventDefault();
+                    setEditMode('pen');
+                    break;
+                case 'delete':
+                case 'backspace':
+                    e.preventDefault();
+                    handleDeleteSelected();
+                    break;
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -613,26 +770,23 @@ const App: React.FC = () => {
     }, [handleDeleteSelected]);
     
     const hasContent = canvasHasContent;
+    const isSingleGroupSelected = numSelectedItems === 1 && paperScopeRef.current?.project.selectedItems[0] instanceof paper.Group;
+
 
     return (
         <ErrorBoundary>
-            <div onContextMenu={handleContextMenu} className="h-screen w-screen bg-[var(--bg-canvas)] font-ui text-[var(--text-primary)] flex flex-col antialiased overflow-hidden">
-                
-                {/* Header */}
-                <header className="h-14 flex-shrink-0 bg-[var(--bg-panel)] flex items-center justify-between px-4 border-b border-[var(--border-color)] z-10">
-                    {/* Logo Area */}
-                    <div className="flex items-center space-x-3 w-64">
-                        <div className="w-8 h-8 bg-[var(--accent-primary)] rounded-lg flex items-center justify-center shadow-lg shadow-[var(--accent-primary)]/20">
-                            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                            </svg>
-                        </div>
-                        <span className="font-bold text-lg tracking-tight text-white">VectorFont AI</span>
+            <div onContextMenu={handleContextMenu} className="h-screen w-screen bg-white font-ui text-gray-900 flex flex-col antialiased">
+                <header className="h-[49px] flex-shrink-0 bg-white flex items-center justify-between px-4 border-b border-gray-200">
+                    <div className="flex items-center space-x-2">
+                        {/* FIX: Malformed SVG tag was fixed, completing the path element and correcting the stroke attribute. */}
+                        <svg className="w-6 h-6 text-black" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                        </svg>
+                        <span className="font-bold text-lg tracking-tight">Skywalk</span>
                     </div>
 
-                    {/* Center Tools */}
-                    <div className="flex-1 flex justify-center items-center">
-                        <div className="flex items-center bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-color)]">
+                    <div className="flex-1 flex justify-center items-center space-x-1">
+                        <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg">
                             <IconButton active={editMode === 'transform'} onClick={() => setEditMode('transform')} tooltip="選取與變形 (V)">
                                 <SelectionIcon className="w-5 h-5" />
                             </IconButton>
@@ -642,7 +796,9 @@ const App: React.FC = () => {
                             <IconButton active={editMode === 'pen'} onClick={() => setEditMode('pen')} tooltip="鋼筆工具 (P)">
                                 <PenToolIcon className="w-5 h-5" />
                             </IconButton>
-                            <div className="w-px h-5 bg-[var(--border-color)] mx-2"></div>
+                        </div>
+                        <div className="w-px h-5 bg-gray-200 mx-2"></div>
+                        <div className="flex items-center space-x-1">
                             <IconButton onClick={() => handleBooleanOperation('unite')} disabled={numSelectedItems < 2} tooltip="合併">
                                 <UniteIcon className="w-5 h-5" />
                             </IconButton>
@@ -653,108 +809,75 @@ const App: React.FC = () => {
                                 <IntersectIcon className="w-5 h-5" />
                             </IconButton>
                         </div>
+                        <div className="w-px h-5 bg-gray-200 mx-2"></div>
+                        <div className="flex items-center space-x-1">
+                             <IconButton onClick={handleGroup} disabled={!(numSelectedItems > 1 || isSingleGroupSelected)} tooltip={isSingleGroupSelected ? "解散群組 (Cmd+G)" : "建立群組 (Cmd+G)"}>
+                                {isSingleGroupSelected ? <UngroupIcon className="w-5 h-5"/> : <GroupIcon className="w-5 h-5" />}
+                             </IconButton>
+                        </div>
+                        <div className="w-px h-5 bg-gray-200 mx-2"></div>
+                        <div className="flex items-center space-x-1">
+                            <IconButton onClick={handleBringToFront} disabled={numSelectedItems < 1} tooltip="移至最上層"><BringToFrontIcon className="w-5 h-5" /></IconButton>
+                            <IconButton onClick={handleSendToBack} disabled={numSelectedItems < 1} tooltip="移至最下層"><SendToBackIcon className="w-5 h-5" /></IconButton>
+                        </div>
+                        <div className="w-px h-5 bg-gray-200 mx-2"></div>
+                        <div className="flex items-center space-x-1">
+                            <IconButton onClick={handleFlipHorizontal} disabled={numSelectedItems < 1} tooltip="水平翻轉"><FlipHorizontalIcon className="w-5 h-5" /></IconButton>
+                            <IconButton onClick={handleFlipVertical} disabled={numSelectedItems < 1} tooltip="垂直翻轉"><FlipVerticalIcon className="w-5 h-5" /></IconButton>
+                        </div>
                     </div>
 
-                    {/* Right Actions */}
-                    <div className="flex items-center space-x-3 w-64 justify-end">
-                        <div className="flex items-center bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-color)]">
-                             <IconButton onClick={undo} disabled={!canUndo} tooltip="復原 (Cmd+Z)">
-                                <UndoIcon className="w-4 h-4" />
-                            </IconButton>
-                            <IconButton onClick={redo} disabled={!canRedo} tooltip="重做 (Cmd+Shift+Z)">
-                                <RedoIcon className="w-4 h-4" />
-                            </IconButton>
-                        </div>
-
-                        <div className="flex items-center space-x-1">
-                            <IconButton onClick={() => toggleViewOption('showGrid')} active={viewOptions.showGrid} tooltip="切換網格" className="bg-[var(--bg-panel-hover)]">
-                                <GridIcon className="w-5 h-5" />
-                            </IconButton>
-                             <IconButton onClick={() => setIsUiVisible(v => !v)} active={isUiVisible} tooltip="切換介面" className="bg-[var(--bg-panel-hover)]">
-                                <PanelsIcon className="w-5 h-5" />
-                            </IconButton>
-                        </div>
-
-                        <button 
-                            onClick={handleExportSVG} 
-                            disabled={!hasContent}
-                            className="h-9 px-5 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-lg transition-colors shadow-lg shadow-[var(--accent-primary)]/20 flex items-center gap-2 tracking-wide"
-                        >
-                            Export
-                        </button>
-                        
-                         <div className="w-9 h-9 rounded-full bg-[var(--bg-panel-hover)] border border-[var(--border-color)] flex items-center justify-center cursor-pointer hover:border-[var(--accent-primary)] transition-colors">
-                            <span className="text-xs font-bold text-[var(--text-secondary)]">CW</span>
-                        </div>
+                    <div className="flex items-center space-x-2">
+                         <div className="flex items-center space-x-2">
+                            <IconButton onClick={handleZoomOut} tooltip="縮小"><MinusIcon /></IconButton>
+                            <button onClick={handleZoomReset} className="w-16 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-md py-1">{Math.round(zoomLevel * 100)}%</button>
+                            <IconButton onClick={handleZoomIn} tooltip="放大"><PlusIcon /></IconButton>
+                         </div>
+                        <div className="w-px h-5 bg-gray-200 mx-1"></div>
+                        <IconButton onClick={() => toggleViewOption('showGrid')} active={viewOptions.showGrid} tooltip="切換網格"><GridIcon className="w-5 h-5" /></IconButton>
+                        <IconButton onClick={() => toggleViewOption('showGuides')} active={viewOptions.showGuides} tooltip="切換參考線"><GuidesIcon className="w-5 h-5"/></IconButton>
+                        <IconButton onClick={() => setIsUiVisible(v => !v)} active={isUiVisible} tooltip="顯示/隱藏介面 (Cmd+\)"><PanelsIcon className="w-5 h-5"/></IconButton>
+                        <div className="w-px h-5 bg-gray-200 mx-1"></div>
+                        <IconButton onClick={undo} disabled={!canUndo} tooltip="復原"><UndoIcon /></IconButton>
+                        <IconButton onClick={redo} disabled={!canRedo} tooltip="重做"><RedoIcon /></IconButton>
+                        <div className="w-px h-5 bg-gray-200 mx-1"></div>
+                        <IconButton onClick={handleExportSVG} disabled={!hasContent} tooltip="匯出 SVG"><DownloadIcon /></IconButton>
+                        <IconButton onClick={handleCopySVG} disabled={!hasContent} tooltip="複製 SVG"><CopyIcon /></IconButton>
+                        <IconButton onClick={handleClearCanvas} disabled={!hasContent} tooltip="清空畫布"><TrashIcon /></IconButton>
                     </div>
                 </header>
 
-                {/* Main Workspace */}
-                <main className="flex-grow flex h-[calc(100vh-56px)] overflow-hidden">
+                <main className="flex-grow flex h-[calc(100vh-49px)] overflow-hidden">
                     <AnimatePresence>
-                        {isUiVisible && (
-                            <div className="flex flex-shrink-0 h-full">
-                                {/* Icon Rail - Updated background color */}
-                                <motion.div
-                                    className="w-[60px] bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col items-center py-4 space-y-4 z-20"
-                                    initial={{ x: -60 }}
-                                    animate={{ x: 0 }}
-                                    exit={{ x: -60 }}
-                                    transition={{ duration: 0.2, ease: 'easeInOut' }}
-                                >
-                                    <RailButton 
-                                        icon={<SparklesIcon className="w-6 h-6" />} 
-                                        tooltip="資源庫" 
-                                        isActive={activeSidebarTab === 'letters'} 
-                                        onClick={() => setActiveSidebarTab('letters')} 
-                                    />
-                                    <RailButton 
-                                        icon={<LayersIcon className="w-6 h-6" />} 
-                                        tooltip="圖層" 
-                                        isActive={activeSidebarTab === 'layers'} 
-                                        onClick={() => setActiveSidebarTab('layers')} 
-                                    />
-                                     <div className="flex-grow" />
-                                     <RailButton 
-                                        icon={<SettingsIcon className="w-6 h-6" />} 
-                                        tooltip="設定" 
-                                        isActive={activeSidebarTab === 'settings'} 
-                                        onClick={() => setActiveSidebarTab('settings')} 
-                                    />
-                                </motion.div>
-
-                                {/* Expandable Sidebar Panel */}
-                                <motion.aside
-                                    className="flex-shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] overflow-hidden z-10 relative"
-                                    initial={{ width: 0, opacity: 0 }}
-                                    animate={{ width: panelWidths.sidebar, opacity: 1 }}
-                                    exit={{ width: 0, opacity: 0 }}
-                                    transition={{ duration: 0.2, ease: 'easeInOut' }}
-                                >
-                                    <Sidebar
-                                        activeTab={activeSidebarTab}
-                                        onSelectLetter={handleSelectLetter}
-                                        currentLetterKey={selectedLetter}
-                                        onImportSVG={(svg) => handleSelectLetter(`imported-${Date.now()}`, svg)}
-                                        layers={layers}
-                                        activeLayerId={activeLayerId}
-                                        onAddLayer={handleAddLayer}
-                                        onDeleteLayer={handleDeleteLayer}
-                                        onUpdateLayer={handleUpdateLayer}
-                                        onReorderLayer={handleReorderLayer}
-                                        onSetActiveLayer={setActiveLayerId}
-                                    />
-                                     <ResizeHandle 
-                                        onDrag={handleSidebarResize} 
-                                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--accent-primary)] transition-colors opacity-0 hover:opacity-100"
-                                    />
-                                </motion.aside>
-                            </div>
-                        )}
+                        {isUiVisible &&
+                            <motion.aside
+                                className="flex-shrink-0 bg-gray-50"
+                                initial={{ width: 0 }}
+                                animate={{ width: panelWidths.sidebar }}
+                                exit={{ width: 0 }}
+                                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                style={{ overflow: 'hidden' }}
+                            >
+                                <Sidebar
+                                    activeTab={activeSidebarTab}
+                                    onSelectLetter={handleSelectLetter}
+                                    currentLetterKey={selectedLetter}
+                                    onImportSVG={(svg) => handleSelectLetter(`imported-${Date.now()}`, svg)}
+                                    layers={layers}
+                                    activeLayerId={activeLayerId}
+                                    onAddLayer={handleAddLayer}
+                                    onDeleteLayer={handleDeleteLayer}
+                                    onUpdateLayer={handleUpdateLayer}
+                                    onReorderLayer={handleReorderLayer}
+                                    onSetActiveLayer={setActiveLayerId}
+                                />
+                            </motion.aside>
+                        }
                     </AnimatePresence>
                     
-                    {/* Canvas Area */}
-                    <div className="flex-grow flex flex-col relative bg-[var(--bg-canvas)]">
+                    {isUiVisible && <ResizeHandle onDrag={handleSidebarResize} />}
+
+                    <div className="flex-grow flex flex-col relative bg-gray-100">
                         <CanvasComponent
                             svgData={svgData}
                             letterKey={selectedLetter}
@@ -772,71 +895,49 @@ const App: React.FC = () => {
                             onPathComplete={handlePathComplete}
                             onSelectionUpdate={handleSelectionUpdate}
                         />
-                        
-                        {/* Zoom & Pan Controls Overlay */}
-                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-1 bg-[var(--bg-panel)] p-1.5 rounded-xl border border-[var(--border-color)] shadow-2xl z-20">
-                            <IconButton onClick={handleZoomOut} tooltip="縮小" className="hover:bg-[var(--bg-canvas)]">
-                                <MinusIcon className="w-4 h-4" />
-                            </IconButton>
-                            <button onClick={handleZoomReset} className="px-3 py-1.5 text-xs font-mono font-medium text-[var(--text-secondary)] hover:text-white transition-colors min-w-[60px] text-center">
-                                {Math.round(zoomLevel * 100)}%
-                            </button>
-                            <IconButton onClick={handleZoomIn} tooltip="放大" className="hover:bg-[var(--bg-canvas)]">
-                                <PlusIcon className="w-4 h-4" />
-                            </IconButton>
-                            <div className="w-px h-4 bg-[var(--border-color)] mx-1"></div>
-                            <IconButton onClick={handleZoomReset} tooltip="重設視圖" className="hover:bg-[var(--bg-canvas)]">
-                                <RefreshIcon className="w-4 h-4" />
-                            </IconButton>
-                        </div>
                     </div>
+
+                    {isUiVisible && <ResizeHandle onDrag={handleControlPanelResize} />}
 
                     <AnimatePresence>
                         {isUiVisible &&
                             <motion.aside
-                                className="flex-shrink-0 bg-[var(--bg-panel)] border-l border-[var(--border-color)] z-10 relative"
-                                initial={{ width: 0, opacity: 0 }}
-                                animate={{ width: panelWidths.controlPanel, opacity: 1 }}
-                                exit={{ width: 0, opacity: 0 }}
+                                className="flex-shrink-0 bg-white"
+                                initial={{ width: 0 }}
+                                animate={{ width: panelWidths.controlPanel }}
+                                exit={{ width: 0 }}
                                 transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                style={{ overflow: 'hidden' }}
                             >
-                                 <ResizeHandle 
-                                    onDrag={handleControlPanelResize} 
-                                    className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--accent-primary)] transition-colors opacity-0 hover:opacity-100 z-20"
+                                <ControlPanel
+                                    params={params}
+                                    nodeOverrides={nodeOverrides}
+                                    selectedSegmentIds={selectedSegmentIds}
+                                    penSettings={penSettings}
+                                    onParamChange={handleParamChange}
+                                    onNodeOverrideChange={handleNodeOverrideChange}
+                                    onResetNodeOverrides={handleResetNodeOverrides}
+                                    onPenSettingChange={setPenSettings}
+                                    onApplyStyle={handleApplyStyle}
+                                    disabled={!hasContent}
+                                    editMode={editMode}
+                                    paperScope={paperScopeRef.current}
+                                    selectedItem={selectedItem}
                                 />
-                                <div className="h-full overflow-y-auto custom-scrollbar">
-                                    <ControlPanel
-                                        params={params}
-                                        nodeOverrides={nodeOverrides}
-                                        selectedSegmentIds={selectedSegmentIds}
-                                        penSettings={penSettings}
-                                        onParamChange={handleParamChange}
-                                        onNodeOverrideChange={handleNodeOverrideChange}
-                                        onResetNodeOverrides={handleResetNodeOverrides}
-                                        onPenSettingChange={setPenSettings}
-                                        onApplyStyle={handleApplyStyle}
-                                        disabled={!hasContent}
-                                        editMode={editMode}
-                                        paperScope={paperScopeRef.current}
-                                        selectedItem={selectedItem}
-                                    />
-                                </div>
                             </motion.aside>
                         }
                     </AnimatePresence>
                 </main>
                 
-                {/* Notifications */}
                 <AnimatePresence>
                   {notification && (
                     <motion.div
-                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute top-20 left-1/2 -translate-x-1/2 bg-[var(--accent-primary)] text-white px-4 py-2.5 rounded-lg text-sm font-medium shadow-xl z-50 flex items-center gap-2"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 20 }}
+                      className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-md text-sm shadow-lg flex items-center gap-2"
                     >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <CheckCircleIcon className="w-4 h-4 text-green-400" />
                       {notification}
                     </motion.div>
                   )}
@@ -856,24 +957,5 @@ const App: React.FC = () => {
         </ErrorBoundary>
     );
 };
-
-const RailButton: React.FC<{ icon: React.ReactNode; tooltip: string; isActive: boolean; onClick: () => void }> = ({ icon, tooltip, isActive, onClick }) => (
-    <button
-        onClick={onClick}
-        title={tooltip}
-        className={clsx(
-            "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 group relative",
-            isActive 
-                ? "bg-[var(--accent-primary)] text-white shadow-lg shadow-[var(--accent-primary)]/30" 
-                : "text-[var(--text-tertiary)] hover:bg-[var(--bg-panel-hover)] hover:text-[var(--text-primary)]"
-        )}
-    >
-        {icon}
-        {/* Tooltip on hover right */}
-        <div className="absolute left-full ml-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-            {tooltip}
-        </div>
-    </button>
-)
 
 export default App;

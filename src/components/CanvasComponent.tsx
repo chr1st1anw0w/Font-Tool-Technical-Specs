@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import clsx from 'clsx';
 import type { TransformParams, ViewOptions, Layer, PenToolSettings, SvgData } from '../types';
@@ -54,6 +55,21 @@ const CanvasComponent: React.FC<CanvasComponentProps> = ({
 
     return (
         <div className={clsx("flex-grow h-full flex items-center justify-center relative overflow-hidden", showGrid && "canvas-grid")}>
+            {/* Top Left Glyph Indicator */}
+            <div className="absolute top-6 left-6 z-10 pointer-events-none">
+                 <span className="text-[var(--text-tertiary)] font-medium">Glyph: </span>
+                 <span className="text-[var(--text-primary)] font-bold text-lg ml-1">{letterKey || 'None'}</span>
+            </div>
+
+            {/* Background Watermark 'A' - Visible when no content or always if desired to match ref precisely */}
+            {!hasContent && letterKey === 'A' && (
+                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
+                    <span className="text-[40vw] font-bold text-[var(--text-primary)] opacity-[0.03] leading-none" style={{ filter: 'blur(2px)' }}>
+                        A
+                    </span>
+                </div>
+            )}
+
             {hasContent || svgData || editMode === 'pen' ? (
                 <>
                     <CanvasRenderer
@@ -93,9 +109,9 @@ const CanvasComponent: React.FC<CanvasComponentProps> = ({
                     )}
                 </>
             ) : (
-                <div className="text-center text-gray-400 flex flex-col items-center">
-                    <FileCodeIcon className="w-16 h-16 text-gray-300 mb-4" />
-                    <p className="mt-2 text-base font-medium text-gray-500">匯入 SVG 檔案以開始使用</p>
+                <div className="text-center text-[var(--text-tertiary)] flex flex-col items-center opacity-50">
+                    <FileCodeIcon className="w-16 h-16 mb-4" />
+                    <p className="mt-2 text-base font-medium">Import an SVG to get started</p>
                 </div>
             )}
         </div>

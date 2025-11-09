@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { Layer } from '../types';
-import { EyeIcon, EyeOffIcon, LockClosedIcon, LockOpenIcon, PlusIcon, TrashIcon, ArrowUpIcon, ArrowDownIcon, PencilIcon } from './icons';
+import { EyeIcon, EyeOffIcon, LockIcon, UnlockIcon, PlusIcon, TrashIcon } from './icons';
 
 interface LayerPanelProps {
     layers: Layer[];
@@ -20,7 +20,6 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
     onAddLayer,
     onDeleteLayer,
     onUpdateLayer,
-    onReorderLayer,
     onSetActiveLayer
 }) => {
     const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
@@ -46,83 +45,61 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
         setEditingLayerId(null);
     };
 
-    const handleCancelEdit = () => {
-        setEditingLayerId(null);
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            handleConfirmEdit();
-        } else if (e.key === 'Escape') {
-            handleCancelEdit();
-        }
-    };
-    
     return (
-        <div className="h-full flex flex-col">
-            <div className="flex-grow p-2 space-y-1 overflow-y-auto">
-                {layers.map((layer, index) => (
+        <div className="h-full flex flex-col p-4">
+            <div className="flex items-center justify-between mb-4">
+                 <h3 className="text-sm font-bold text-[var(--text-primary)]">Layers</h3>
+                 <div className="flex items-center space-x-1">
+                    <button onClick={onAddLayer} className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-hover)] rounded-md transition-colors">
+                        <PlusIcon className="w-4 h-4" />
+                    </button>
+                     <button onClick={() => activeLayerId && onDeleteLayer(activeLayerId)} disabled={!activeLayerId || layers.length <= 1} className="p-1.5 text-[var(--text-tertiary)] hover:text-red-400 hover:bg-[var(--bg-panel-hover)] rounded-md transition-colors disabled:opacity-30">
+                        <TrashIcon className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex-grow space-y-1 overflow-y-auto custom-scrollbar -mx-2 px-2">
+                {layers.map((layer) => (
                     <div
                         key={layer.id}
                         onClick={() => onSetActiveLayer(layer.id)}
                         onDoubleClick={() => handleStartEdit(layer)}
                         className={clsx(
-                            "group flex items-center h-10 px-2 rounded-md cursor-pointer transition-colors",
+                            "group flex items-center h-11 px-3 rounded-lg cursor-pointer transition-all border border-transparent",
                             activeLayerId === layer.id
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'hover:bg-gray-100'
+                                ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]'
+                                : 'hover:bg-[var(--bg-panel-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         )}
                     >
-                        {editingLayerId === layer.id ? (
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={editingName}
-                                onChange={(e) => setEditingName(e.target.value)}
-                                onBlur={handleConfirmEdit}
-                                onKeyDown={handleKeyDown}
-                                className="flex-grow bg-white text-sm p-1 rounded border border-blue-400 focus:outline-none"
-                            />
-                        ) : (
-                            <span className="flex-grow text-sm font-medium truncate">{layer.name}</span>
-                        )}
-                        <div className="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center space-x-3 flex-grow min-w-0">
                              <button
-                                onClick={(e) => { e.stopPropagation(); handleStartEdit(layer); }}
-                                className="p-1 rounded hover:bg-gray-200" title="重新命名">
-                                <PencilIcon className="w-3.5 h-3.5" />
-                            </button>
-                            <button
                                 onClick={(e) => { e.stopPropagation(); onUpdateLayer(layer.id, { visible: !layer.visible }); }}
-                                className="p-1 rounded hover:bg-gray-200" title={layer.visible ? '隱藏' : '顯示'}>
-                                {layer.visible ? <EyeIcon className="w-4 h-4" /> : <EyeOffIcon className="w-4 h-4 text-gray-400" />}
+                                className={clsx("flex-shrink-0 transition-colors", layer.visible ? "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]" : "text-[var(--text-tertiary)]")}>
+                                {layer.visible ? <EyeIcon className="w-4 h-4" /> : <EyeOffIcon className="w-4 h-4" />}
                             </button>
-                            <button
+                             <button
                                 onClick={(e) => { e.stopPropagation(); onUpdateLayer(layer.id, { locked: !layer.locked }); }}
-                                className="p-1 rounded hover:bg-gray-200" title={layer.locked ? '解鎖' : '鎖定'}>
-                                {layer.locked ? <LockClosedIcon className="w-4 h-4" /> : <LockOpenIcon className="w-4 h-4 text-gray-400" />}
+                                className={clsx("flex-shrink-0 transition-colors", layer.locked ? "text-[var(--text-primary)]" : "text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100")}>
+                                {layer.locked ? <LockIcon className="w-3.5 h-3.5" /> : <UnlockIcon className="w-3.5 h-3.5" />}
                             </button>
+
+                            {editingLayerId === layer.id ? (
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={editingName}
+                                    onChange={(e) => setEditingName(e.target.value)}
+                                    onBlur={handleConfirmEdit}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleConfirmEdit()}
+                                    className="flex-grow bg-[var(--bg-input)] text-sm p-1 rounded border border-[var(--accent-primary)] focus:outline-none text-[var(--text-primary)]"
+                                />
+                            ) : (
+                                <span className="text-sm font-medium truncate">{layer.name}</span>
+                            )}
                         </div>
                     </div>
                 ))}
-            </div>
-            <div className="flex-shrink-0 p-2 border-t border-gray-200 flex items-center justify-between">
-                <div className="flex items-center space-x-1">
-                    <button onClick={onAddLayer} className="p-2 rounded-md hover:bg-gray-200" title="新增圖層">
-                        <PlusIcon className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => activeLayerId && onDeleteLayer(activeLayerId)} disabled={!activeLayerId || layers.length <= 1} className="p-2 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="刪除圖層">
-                        <TrashIcon className="w-4 h-4" />
-                    </button>
-                </div>
-                 <div className="flex items-center space-x-1">
-                    <button onClick={() => activeLayerId && onReorderLayer(activeLayerId, 'up')} disabled={!activeLayerId || layers.findIndex(l => l.id === activeLayerId) === 0} className="p-2 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="上移圖層">
-                        <ArrowUpIcon className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => activeLayerId && onReorderLayer(activeLayerId, 'down')} disabled={!activeLayerId || layers.findIndex(l => l.id === activeLayerId) === layers.length - 1} className="p-2 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="下移圖層">
-                        <ArrowDownIcon className="w-4 h-4" />
-                    </button>
-                </div>
             </div>
         </div>
     );

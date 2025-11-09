@@ -5,7 +5,7 @@ import paper from 'paper';
 import type { TransformParams, PenToolSettings } from '../types';
 import { BevelType } from '../types';
 import Slider from './ui/Slider';
-import { SparklesIcon, PenToolIcon } from './icons';
+import { SparklesIcon, PenToolIcon, SlidersIcon } from './icons';
 import { aiService } from '../services/aiService';
 import ColorPicker from './ui/ColorPicker';
 import clsx from 'clsx';
@@ -34,7 +34,7 @@ const ControlPanel: React.FC<ControlPanelProps> = (props) => {
         <div className="h-full flex flex-col bg-[var(--bg-panel)]">
              {/* Tabs Header */}
              <div className="flex-shrink-0 h-14 flex items-center px-2 border-b border-[var(--border-color)]">
-                <TabButton label="Properties" isActive={activeTab === 'properties'} onClick={() => setActiveTab('properties')} />
+                <TabButton label="Properties" isActive={activeTab === 'properties'} onClick={() => setActiveTab('properties')} icon={<SlidersIcon className="w-4 h-4 mr-1.5"/>} />
                 <TabButton label="AI Assistant" isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<SparklesIcon className="w-4 h-4 mr-1.5"/>} />
              </div>
 
@@ -69,6 +69,15 @@ const SectionHeader: React.FC<{ title: string }> = ({ title }) => (
     <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">{title}</h3>
 )
 
+const bevelOptions = [
+    { type: BevelType.NONE, label: 'None', icon: <path d="M4 20V4H20" stroke="currentColor" strokeWidth="2" fill="none"/> },
+    { type: BevelType.CHAMFER, label: 'Chamfer', icon: <path d="M4 20V10L10 4H20" stroke="currentColor" strokeWidth="2" fill="none"/> },
+    { type: BevelType.FILLET, label: 'Round', icon: <path d="M4 20V12C4 7.58172 7.58172 4 12 4H20" stroke="currentColor" strokeWidth="2" fill="none"/> },
+    { type: BevelType.CONCAVE_SQUARE, label: 'In-Square', icon: <path d="M4 20V12H12V4H20" stroke="currentColor" strokeWidth="2" fill="none"/> },
+    { type: BevelType.CONCAVE_CHAMFER, label: 'In-Chamfer', icon: <path d="M4 20V4L12 12H20" stroke="currentColor" strokeWidth="2" fill="none"/> }, // Simplified visual for readablity
+    { type: BevelType.CONCAVE_ROUND, label: 'In-Round', icon: <path d="M4 20V4C4 9 9 12 14 12H20" stroke="currentColor" strokeWidth="2" fill="none"/> },
+];
+
 const PropertiesContent: React.FC<ControlPanelProps> = ({ params, onParamChange, editMode, penSettings, onPenSettingChange }) => {
     if (editMode === 'pen') {
         return (
@@ -85,7 +94,7 @@ const PropertiesContent: React.FC<ControlPanelProps> = ({ params, onParamChange,
 
     return (
         <>
-            <div className="space-y-6">
+            <div className="space-y-8">
                 <div>
                     <SectionHeader title="Transform" />
                     <div className="grid grid-cols-2 gap-3">
@@ -107,6 +116,72 @@ const PropertiesContent: React.FC<ControlPanelProps> = ({ params, onParamChange,
                         <Slider label="Width" value={params.width} onChange={(v) => onParamChange('width', v)} min={50} max={150} displaySuffix="%" />
                         <Slider label="Slant" value={params.slant} onChange={(v) => onParamChange('slant', v)} min={-30} max={30} displaySuffix="°" />
                      </div>
+                </div>
+
+                <div>
+                    <SectionHeader title="Super Bevel" />
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-3 gap-2">
+                            {bevelOptions.map((option) => (
+                                <button
+                                    key={option.type}
+                                    onClick={() => onParamChange('bevelType', option.type)}
+                                    className={clsx(
+                                        "flex flex-col items-center justify-center p-2 rounded-lg border transition-all duration-200 h-16",
+                                        params.bevelType === option.type
+                                            ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white"
+                                            : "bg-[var(--bg-input)] border-[var(--border-color)] text-[var(--text-tertiary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)]"
+                                    )}
+                                    title={option.label}
+                                >
+                                    <svg viewBox="0 0 24 24" className="w-6 h-6 mb-1">
+                                        {option.icon}
+                                    </svg>
+                                    <span className="text-[10px] font-medium">{option.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <motion.div 
+                             initial={false}
+                             animate={{ opacity: params.bevelType === BevelType.NONE ? 0.5 : 1, pointerEvents: params.bevelType === BevelType.NONE ? 'none' : 'auto' }}
+                             className="space-y-4"
+                        >
+                            <Slider 
+                                label="Bevel Size" 
+                                value={params.bevelSize} 
+                                onChange={(v) => onParamChange('bevelSize', v)} 
+                                min={0} 
+                                max={50} 
+                                step={0.5}
+                                displaySuffix="px"
+                            />
+                             {(params.bevelType === BevelType.CHAMFER || params.bevelType === BevelType.CONCAVE_CHAMFER) && (
+                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                                    <Slider 
+                                        label="Chamfer Angle" 
+                                        value={params.chamferAngle} 
+                                        onChange={(v) => onParamChange('chamferAngle', v)} 
+                                        min={15} 
+                                        max={75} 
+                                        displaySuffix="°"
+                                    />
+                                </motion.div>
+                            )}
+                             {(params.bevelType === BevelType.FILLET || params.bevelType === BevelType.CONCAVE_ROUND) && (
+                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                                    <Slider
+                                        label="Smoothing"
+                                        value={params.segments || 8}
+                                        onChange={(v) => onParamChange('segments', v)}
+                                        min={4}
+                                        max={32}
+                                        step={2}
+                                    />
+                                </motion.div>
+                            )}
+                        </motion.div>
+                    </div>
                 </div>
 
                 <div>

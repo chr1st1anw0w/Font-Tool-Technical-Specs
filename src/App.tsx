@@ -13,7 +13,9 @@ import {
     PlusIcon, MinusIcon, RefreshIcon, PenToolIcon, TrashIcon,
     UndoIcon, RedoIcon, UniteIcon, SubtractIcon, IntersectIcon, PasteIcon,
     SelectionIcon, DirectSelectionIcon, SelectAllIcon,
-    SparklesIcon, LayersIcon, SettingsIcon
+    SparklesIcon, LayersIcon, SettingsIcon, DownloadIcon,
+    GroupIcon, UngroupIcon, BringToFrontIcon, SendToBackIcon, FlipHorizontalIcon, FlipVerticalIcon,
+    CodeIcon, PngIcon, CopyPropertiesIcon, PastePropertiesIcon, GuidesIcon, CheckCircleIcon
 } from './components/icons';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -85,12 +87,13 @@ const App: React.FC = () => {
             bevelType: BevelType.NONE,
             bevelSize: 8,
             chamferAngle: 45,
+            segments: 8,
         },
         nodeOverrides: [],
     });
 
     const { params } = historyState;
-    const nodeOverrides = new Map(historyState.nodeOverrides);
+    const nodeOverrides = new Map<string, Partial<TransformParams>>(historyState.nodeOverrides);
     
     const [viewOptions, setViewOptions] = useLocalStorage<ViewOptions>('skywalk-view-options', {
         showGuides: true,
@@ -169,7 +172,7 @@ const App: React.FC = () => {
 
     const handleResetNodeOverrides = useCallback((segmentIds: string[]) => {
         setHistoryState(prev => {
-            const newOverrides = new Map(prev.nodeOverrides);
+            const newOverrides = new Map<string, Partial<TransformParams>>(prev.nodeOverrides);
             segmentIds.forEach(id => {
                 newOverrides.delete(id);
             });
@@ -260,6 +263,20 @@ const App: React.FC = () => {
         }
     }, [showNotification]);
     
+    const handleCopySVG = useCallback(async () => {
+        if (paperScopeRef.current) {
+            try {
+                paperScopeRef.current.project.deselectAll();
+                const svgString = paperScopeRef.current.project.exportSVG({ asString: true });
+                await navigator.clipboard.writeText(svgString);
+                showNotification('SVG 程式碼已複製到剪貼簿');
+            } catch (error) {
+                showNotification('複製失敗，請再試一次');
+                console.error('Copy SVG failed:', error);
+            }
+        }
+    }, [showNotification]);
+
     const handleZoomIn = useCallback(() => {
         if (!paperScopeRef.current) return;
         const view = paperScopeRef.current.view;
@@ -383,18 +400,23 @@ const App: React.FC = () => {
         const scope = paperScopeRef.current;
         if (!scope) return;
     
+        // A set to keep track of paths that have been modified
+        const modifiedPaths = new Set<paper.Path>();
+    
+        // First, handle selected segments
         const selectedSegments = scope.project.getItems({ selected: true, class: scope.Segment });
         if (selectedSegments.length > 0) {
-             const segmentsByPath = new Map<paper.Path, paper.Segment[]>();
+            const segmentsByPath = new Map<paper.Path, paper.Segment[]>();
             selectedSegments.forEach((seg: paper.Segment) => {
                 if (!segmentsByPath.has(seg.path)) {
                     segmentsByPath.set(seg.path, []);
                 }
                 segmentsByPath.get(seg.path)!.push(seg);
             });
+    
             let removedCount = 0;
-            const modifiedPaths = new Set<paper.Path>();
             segmentsByPath.forEach((segments, path) => {
+                // Keep at least 2 segments for a path to be valid
                 if (path.segments.length - segments.length >= 2) {
                     segments.forEach(seg => {
                         seg.remove();
@@ -403,6 +425,7 @@ const App: React.FC = () => {
                     modifiedPaths.add(path);
                 }
             });
+    
             if (removedCount > 0) {
                 showNotification(`${removedCount} 個節點已刪除`);
                 modifiedPaths.forEach(path => {
@@ -415,10 +438,11 @@ const App: React.FC = () => {
                     }
                 });
                 handleSelectionUpdate({ items: scope.project.selectedItems, segments: [] });
-                return;
+                return; // Don't proceed to delete the whole item
             }
         }
     
+        // If no segments were deleted, proceed to delete whole items
         const selectedItems = scope.project.selectedItems;
         if (selectedItems.length > 0) {
             const count = selectedItems.length;
@@ -431,21 +455,63 @@ const App: React.FC = () => {
     const handleCopyItems = useCallback(() => {
         const scope = paperScopeRef.current;
         if (!scope || scope.project.selectedItems.length === 0) return;
+
         const selected = scope.project.selectedItems.filter((item: paper.Item) => item.data.isArtwork);
         if (selected.length === 0) return;
+
+        // Create a temporary group to export multiple items as one SVG
         const group = new scope.Group(selected);
         const svgString = group.exportSVG({ asString: true });
-        group.remove(); 
+        group.remove(); // Clean up the temporary group
+        
         internalClipboardRef.current = svgString;
         showNotification(`${selected.length} 個物件已複製`);
     }, [showNotification]);
 
     const handlePasteItems = useCallback(async () => {
-         let pasted = false;
+        let pasted = false;
         try {
             const clipboardItems = await navigator.clipboard.read();
             for (const item of clipboardItems) {
-                if (item.types.includes('text/plain')) {
+                if (item.types.includes('text/html')) {
+                    const blob = await item.getType('text/html');
+                    const htmlText = await blob.text();
+                    
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = htmlText;
+                    const img = tempDiv.querySelector('img[src^="data:image/svg+xml"]');
+
+                    if (img) {
+                        const src = img.getAttribute('src');
+                        if (src) {
+                            let svgString = '';
+                            const parts = src.split(',');
+                            const header = parts[0];
+                            const data = parts.slice(1).join(','); 
+
+                            if (data) {
+                                try {
+                                    if (header.includes(';base64')) {
+                                        // Handle base64 encoded SVG
+                                        svgString = atob(data);
+                                    } else {
+                                        // Handle URL-encoded SVG
+                                        svgString = decodeURIComponent(data);
+                                    }
+                                } catch (e) {
+                                    console.error("Error decoding SVG data from clipboard:", e);
+                                }
+                            }
+                            
+                            if (svgString) {
+                                handleSelectLetter(`pasted-figma-${Date.now()}`, svgString, pasteOffset.current);
+                                pasteOffset.current = { x: pasteOffset.current.x + 20, y: pasteOffset.current.y + 20 };
+                                pasted = true;
+                                break;
+                            }
+                        }
+                    }
+                } else if (item.types.includes('text/plain')) {
                     const blob = await item.getType('text/plain');
                     const text = await blob.text();
                     if (text.trim().startsWith('<svg')) {
@@ -457,7 +523,7 @@ const App: React.FC = () => {
                 }
             }
         } catch (err) {
-            // console.warn("讀取剪貼簿失敗", err);
+            console.warn("讀取剪貼簿失敗，可能是權限問題或瀏覽器不支援。", err);
         }
 
         if (!pasted && internalClipboardRef.current) {
@@ -474,6 +540,7 @@ const App: React.FC = () => {
     const handleSelectAll = useCallback(() => {
         const scope = paperScopeRef.current;
         if (!scope || !activeLayerId) return;
+
         const activePaperLayer = scope.project.layers.find((l: paper.Layer) => l.data.id === activeLayerId);
         if (activePaperLayer) {
             scope.project.deselectAll();
@@ -508,16 +575,18 @@ const App: React.FC = () => {
         const scope = paperScopeRef.current;
         if (!scope) return;
         const selected = scope.project.selectedItems.filter((item: paper.Item) => item.data.isArtwork);
-        if (selected.length > 1) { 
+        
+        if (selected.length > 1) { // Grouping
             const group = new scope.Group(selected);
             group.data.isArtwork = true;
             showNotification('物件已群組');
-        } else if (selected.length === 1 && selected[0] instanceof scope.Group) {
+        } else if (selected.length === 1 && selected[0] instanceof scope.Group) { // Ungrouping
             const group = selected[0];
             group.parent.insertChildren(group.index, group.removeChildren());
             group.remove();
             showNotification('物件已解散群組');
         }
+
         handleSelectionUpdate({
             items: scope.project.selectedItems,
             segments: scope.project.getItems({ selected: true, class: scope.Segment })
@@ -543,6 +612,7 @@ const App: React.FC = () => {
         if (!scope) return;
         const selected = scope.project.selectedItems;
         if (selected.length === 0) return;
+
         let totalBounds = selected[0].bounds;
         for (let i = 1; i < selected.length; i++) {
             totalBounds = totalBounds.unite(selected[i].bounds);
@@ -557,6 +627,7 @@ const App: React.FC = () => {
         if (!scope) return;
         const selected = scope.project.selectedItems;
         if (selected.length === 0) return;
+        
         let totalBounds = selected[0].bounds;
         for (let i = 1; i < selected.length; i++) {
             totalBounds = totalBounds.unite(selected[i].bounds);
@@ -573,10 +644,77 @@ const App: React.FC = () => {
 
     const handleContextMenu = useCallback((event: React.MouseEvent) => {
         event.preventDefault();
-        // ... (keep existing context menu logic or simplify if preferred)
-         // For brevity, not fully re-implementing detailed context menu here,
-         // assuming standard copy/paste/delete is sufficient for visual update context.
-    }, []);
+        
+        const scope = paperScopeRef.current;
+        if (!scope) return;
+        
+        const selected = scope.project.selectedItems.filter((item: paper.Item) => item.data.isArtwork);
+        const numSelected = selected.length;
+        
+        let items: MenuItem[] = [];
+
+        // Group 1: Clipboard
+        items.push({ label: '貼上', icon: <PasteIcon />, action: handlePasteItems, shortcut: 'Cmd+V' });
+        if (numSelected > 0) {
+            items.push({ label: '複製', icon: <CopyIcon />, action: handleCopyItems, shortcut: 'Cmd+C' });
+            items.push({
+                label: '複製為...',
+                icon: <CopyIcon />,
+                children: [
+                    { label: 'SVG 程式碼', icon: <CodeIcon />, action: handleCopySVG },
+                    // PNG export not implemented yet for context menu specifically, could reuse handleExportPNG if adapted
+                ]
+            });
+            items.push({ type: 'divider' });
+            items.push({ label: '複製屬性', icon: <CopyPropertiesIcon />, action: handleCopyProperties, shortcut: 'Alt+Cmd+C' });
+            items.push({ label: '貼上屬性', icon: <PastePropertiesIcon />, action: handlePasteProperties, shortcut: 'Alt+Cmd+V', disabled: !propertiesClipboardRef.current });
+            items.push({ type: 'divider' });
+            items.push({ label: '刪除', icon: <TrashIcon />, action: handleDeleteSelected, shortcut: 'Delete' });
+        }
+        items.push({ label: '全選', icon: <SelectAllIcon />, action: handleSelectAll, shortcut: 'Cmd+A' });
+        items.push({ type: 'divider' });
+
+
+        // Group 2: Arrange & Group
+        if (numSelected > 0) {
+            items.push({ label: '移至最上層', icon: <BringToFrontIcon />, action: handleBringToFront });
+            items.push({ label: '移至最下層', icon: <SendToBackIcon />, action: handleSendToBack });
+            
+            const isGroupSelected = numSelected === 1 && selected[0] instanceof scope.Group;
+            if (numSelected > 1 || isGroupSelected) {
+                 items.push({ label: isGroupSelected ? '解散群組' : '建立群組', icon: isGroupSelected ? <UngroupIcon /> : <GroupIcon />, action: handleGroup, shortcut: 'Cmd+G' });
+            }
+        }
+        
+        // Group 3: Path Operations
+        if (numSelected >= 1) {
+             items.push({ label: '扁平化', icon: <UniteIcon />, action: handleFlatten });
+        }
+        if (numSelected >= 2) {
+            items.push({ label: '合併 (Unite)', icon: <UniteIcon />, action: () => handleBooleanOperation('unite') });
+            items.push({ label: '裁切 (Subtract)', icon: <SubtractIcon />, action: () => handleBooleanOperation('subtract') });
+            items.push({ label: '交集 (Intersect)', icon: <IntersectIcon />, action: () => handleBooleanOperation('intersect') });
+        }
+        if (numSelected > 0) {
+            items.push({ type: 'divider' });
+        }
+        
+        // Group 4: Transform
+        if (numSelected > 0) {
+            items.push({ label: '水平翻轉', icon: <FlipHorizontalIcon />, action: handleFlipHorizontal });
+            items.push({ label: '垂直翻轉', icon: <FlipVerticalIcon />, action: handleFlipVertical });
+            items.push({ type: 'divider' });
+        }
+
+        // Group 5: General
+        items.push({ label: '復原', icon: <UndoIcon />, action: undo, disabled: !canUndo, shortcut: 'Cmd+Z' });
+        items.push({ label: '重做', icon: <RedoIcon />, action: redo, disabled: !canRedo, shortcut: 'Cmd+Shift+Z' });
+        items.push({ type: 'divider' });
+        items.push({ label: '重設視圖', icon: <RefreshIcon />, action: handleZoomReset, shortcut: 'Cmd+0' });
+        items.push({ label: '清空畫布', icon: <TrashIcon />, action: handleClearCanvas, disabled: !canvasHasContent });
+    
+        setContextMenu({ x: event.clientX, y: event.clientY, items });
+    }, [canvasHasContent, canUndo, canRedo, handlePasteItems, handleCopyItems, handleCopySVG, handleDeleteSelected, handleSelectAll, handleBringToFront, handleSendToBack, handleGroup, handleFlatten, handleBooleanOperation, handleFlipHorizontal, handleFlipVertical, undo, redo, handleZoomReset, handleClearCanvas, handleCopyProperties, handlePasteProperties]);
 
     const closeContextMenu = useCallback(() => {
         setContextMenu(null);
@@ -600,12 +738,31 @@ const App: React.FC = () => {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+            if (
+                document.activeElement?.tagName === 'INPUT' ||
+                document.activeElement?.tagName === 'TEXTAREA'
+            ) {
+                return;
+            }
+
             switch (e.key.toLowerCase()) {
-                case 'v': e.preventDefault(); setEditMode('transform'); break;
-                case 'a': e.preventDefault(); setEditMode('points'); break;
-                case 'p': e.preventDefault(); setEditMode('pen'); break;
-                case 'delete': case 'backspace': e.preventDefault(); handleDeleteSelected(); break;
+                case 'v':
+                    e.preventDefault();
+                    setEditMode('transform');
+                    break;
+                case 'a':
+                    e.preventDefault();
+                    setEditMode('points');
+                    break;
+                case 'p':
+                    e.preventDefault();
+                    setEditMode('pen');
+                    break;
+                case 'delete':
+                case 'backspace':
+                    e.preventDefault();
+                    handleDeleteSelected();
+                    break;
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -613,6 +770,8 @@ const App: React.FC = () => {
     }, [handleDeleteSelected]);
     
     const hasContent = canvasHasContent;
+    const isSingleGroupSelected = numSelectedItems === 1 && paperScopeRef.current?.project.selectedItems[0] instanceof paper.Group;
+
 
     return (
         <ErrorBoundary>
@@ -670,19 +829,27 @@ const App: React.FC = () => {
                             <IconButton onClick={() => toggleViewOption('showGrid')} active={viewOptions.showGrid} tooltip="切換網格" className="bg-[var(--bg-panel-hover)]">
                                 <GridIcon className="w-5 h-5" />
                             </IconButton>
+                            <IconButton onClick={() => toggleViewOption('showGuides')} active={viewOptions.showGuides} tooltip="切換參考線" className="bg-[var(--bg-panel-hover)]">
+                                <GuidesIcon className="w-5 h-5" />
+                            </IconButton>
                              <IconButton onClick={() => setIsUiVisible(v => !v)} active={isUiVisible} tooltip="切換介面" className="bg-[var(--bg-panel-hover)]">
                                 <PanelsIcon className="w-5 h-5" />
                             </IconButton>
                         </div>
 
-                        <button 
-                            onClick={handleExportSVG} 
-                            disabled={!hasContent}
-                            className="h-9 px-5 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-lg transition-colors shadow-lg shadow-[var(--accent-primary)]/20 flex items-center gap-2 tracking-wide"
-                        >
-                            Export
-                        </button>
+                        <div className="flex items-center bg-[var(--bg-canvas)] p-1 rounded-lg border border-[var(--border-color)]">
+                            <IconButton onClick={handleExportSVG} disabled={!hasContent} tooltip="匯出 SVG">
+                                <DownloadIcon className="w-4 h-4" />
+                            </IconButton>
+                            <IconButton onClick={handleCopySVG} disabled={!hasContent} tooltip="複製 SVG 代碼">
+                                <CodeIcon className="w-4 h-4" />
+                            </IconButton>
+                        </div>
                         
+                        <IconButton onClick={handleClearCanvas} disabled={!hasContent} tooltip="清空畫布" className="hover:text-red-400 hover:bg-red-400/10">
+                            <TrashIcon className="w-4 h-4" />
+                        </IconButton>
+
                          <div className="w-9 h-9 rounded-full bg-[var(--bg-panel-hover)] border border-[var(--border-color)] flex items-center justify-center cursor-pointer hover:border-[var(--accent-primary)] transition-colors">
                             <span className="text-xs font-bold text-[var(--text-secondary)]">CW</span>
                         </div>
@@ -826,7 +993,6 @@ const App: React.FC = () => {
                     </AnimatePresence>
                 </main>
                 
-                {/* Notifications */}
                 <AnimatePresence>
                   {notification && (
                     <motion.div
@@ -836,7 +1002,7 @@ const App: React.FC = () => {
                       transition={{ duration: 0.2 }}
                       className="absolute top-20 left-1/2 -translate-x-1/2 bg-[var(--accent-primary)] text-white px-4 py-2.5 rounded-lg text-sm font-medium shadow-xl z-50 flex items-center gap-2"
                     >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <CheckCircleIcon className="w-4 h-4 text-green-400" />
                       {notification}
                     </motion.div>
                   )}

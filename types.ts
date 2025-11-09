@@ -19,6 +19,8 @@ export interface TransformParams {
   opacity: number;
   bevelType: BevelType;
   bevelSize: number;
+  chamferAngle: number;
+  segments?: number;
 }
 
 export interface PenToolSettings {
@@ -29,9 +31,10 @@ export interface PenToolSettings {
 
 
 export interface ViewOptions {
-  showAids: boolean;
+  showGuides: boolean;
   previewMode: boolean;
   previewBg: 'dark' | 'light';
+  showGrid: boolean;
 }
 
 export interface Layer {
@@ -40,3 +43,11 @@ export interface Layer {
   visible: boolean;
   locked: boolean;
 }
+
+// In App.tsx, the svgData state is defined as `{ data: string; id: number } | null`.
+// Let's add an optional offset property to it.
+export type SvgData = {
+  data: string;
+  id: number;
+  offset?: { x: number; y: number };
+} | null;

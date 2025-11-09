@@ -9,8 +9,8 @@ interface CanvasInteractionProps {
     isSnapEnabled: boolean;
     showGrid: boolean;
     layers: Layer[];
-    onSelectionChange: (count: number) => void;
-    onItemSelected: (item: paper.Item | null) => void;
+    // FIX: Replaced onSelectionChange and onItemSelected with a single onSelectionUpdate callback to align with parent component's prop.
+    onSelectionUpdate: (selection: { items: paper.Item[], segments: paper.Segment[] }) => void;
 }
 
 const MIN_ZOOM = 0.1;
@@ -23,12 +23,14 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
     editMode,
     isSnapEnabled,
     showGrid,
-    onSelectionChange,
-    onItemSelected,
+    onSelectionUpdate,
 }) => {
     const panState = useRef({ isPanning: false, lastPoint: null as any });
     const isSpacePressed = useRef(false);
-    const pointDragTargetRef = useRef<any>(null);
+    const dragTargetRef = useRef<{
+        type: 'segment' | 'handle-in' | 'handle-out';
+        segment: paper.Segment;
+    } | null>(null);
     const artworkDragTargetRef = useRef<paper.Item | null>(null);
     const selectionRectangleRef = useRef<paper.Path.Rectangle | null>(null);
 
@@ -37,6 +39,30 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         paperScope.settings.handleSize = 8;
         paperScope.settings.selectionColor = new paperScope.Color('#3B82F6');
     }, [paperScope]);
+    
+    useEffect(() => {
+        if (!paperScope) return;
+        const scope = paperScope;
+        const items = scope.project.selectedItems;
+
+        if (editMode === 'points') {
+            items.forEach((item: paper.Item) => {
+                 let artwork = item;
+                 while(artwork.parent && !artwork.data.isArtwork) {
+                    artwork = artwork.parent;
+                }
+                if (artwork instanceof scope.Path || artwork instanceof scope.CompoundPath) {
+                    (artwork as any).fullySelected = true;
+                }
+            });
+        } else {
+            scope.project.getItems({ fullySelected: true }).forEach((item: paper.Item) => {
+                (item as any).fullySelected = false;
+            });
+        }
+        (scope.view as any).draw();
+    }, [editMode, paperScope]);
+
 
     const handleWheel = useCallback((event: WheelEvent) => {
         if (!paperScope) return;
@@ -58,6 +84,12 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
             onZoomChange(newZoom);
         }
     }, [paperScope, onZoomChange]);
+
+    const triggerSelectionUpdate = useCallback(() => {
+        const selectedItems = paperScope.project.selectedItems;
+        const selectedSegments = paperScope.project.getItems({ selected: true, class: paperScope.Segment });
+        onSelectionUpdate({ items: selectedItems, segments: selectedSegments });
+    }, [paperScope, onSelectionUpdate]);
 
     const handleMouseDown = useCallback((event: any) => {
         if (!paperScope || editMode === 'pen') return;
@@ -111,34 +143,38 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         }
 
         if (editMode === 'points' && nativeEvent.button === 0) {
+            dragTargetRef.current = null;
             const hitOptions = { segments: true, stroke: true, handles: true, tolerance: 5 / paperScope.view.zoom };
+
             const hitResult = paperScope.project.hitTest(point, hitOptions);
-            
-            if (!nativeEvent.shiftKey) {
-                paperScope.project.deselectAll();
+
+            if (!nativeEvent.shiftKey && hitResult?.type !== 'segment') {
+                 paperScope.project.deselectAll();
             }
 
             if (hitResult && !hitResult.item.layer.data.locked) {
+                 if(hitResult.item instanceof paperScope.Path) {
+                    (hitResult.item as any).fullySelected = true;
+                 }
                  if (hitResult.type === 'stroke') {
-                    const location = hitResult.location;
-                    const newSegment = hitResult.item.insert(location.index + 1, point);
+                    const newSegment = hitResult.item.insert(hitResult.location.index + 1, point);
                     newSegment.selected = true;
-                    pointDragTargetRef.current = { type: 'segment', segment: newSegment };
-                } else {
-                    hitResult.item.selected = true;
-                    pointDragTargetRef.current = hitResult;
+                    dragTargetRef.current = { type: 'segment', segment: newSegment };
+                } else if (hitResult.segment) {
+                    if (nativeEvent.shiftKey) {
+                        hitResult.segment.selected = !hitResult.segment.selected;
+                    } else {
+                        hitResult.segment.selected = true;
+                    }
+                    dragTargetRef.current = { type: hitResult.type, segment: hitResult.segment };
                 }
-            } else {
-                pointDragTargetRef.current = null;
             }
         }
         
-        onSelectionChange(paperScope.project.selectedItems.length);
-        onItemSelected(paperScope.project.selectedItems.length === 1 ? paperScope.project.selectedItems[0] : null);
+        triggerSelectionUpdate();
+    }, [paperScope, editMode, triggerSelectionUpdate]);
 
-    }, [paperScope, editMode, onSelectionChange, onItemSelected]);
-
-    const handleMouseMove = useCallback((event: any) => {
+    const handleMouseMove = useCallback((event: any) => { // This is paper's onMouseDrag
         if (!paperScope || editMode === 'pen') return;
         
         const point = new paperScope.Point(event.point);
@@ -167,14 +203,14 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
             return;
         }
 
-        if (editMode === 'points' && pointDragTargetRef.current) {
-            const dragTarget = pointDragTargetRef.current;
-            if (dragTarget.item.layer.data.locked) {
-                pointDragTargetRef.current = null;
+        if (editMode === 'points' && dragTargetRef.current) {
+            const dragTarget = dragTargetRef.current;
+            if (dragTarget.segment.path.layer.data.locked) {
+                dragTargetRef.current = null;
                 return;
             }
             
-            let projectPoint = point;
+            let projectPoint = event.point;
             
             if (isSnapEnabled && showGrid && dragTarget.type === 'segment') {
                 const gridSize = GRID_SIZE;
@@ -182,12 +218,26 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
                 projectPoint.y = Math.round(projectPoint.y / gridSize) * gridSize;
             }
             
+            const segment = dragTarget.segment;
+
             if (dragTarget.type === 'segment') {
-                dragTarget.segment.point = projectPoint;
-            } else if (dragTarget.type === 'handle-in') {
-                dragTarget.segment.handleIn = projectPoint.subtract(dragTarget.segment.point);
-            } else if (dragTarget.type === 'handle-out') {
-                dragTarget.segment.handleOut = projectPoint.subtract(dragTarget.segment.point);
+                // Also move other selected segments
+                paperScope.project.getItems({class: paperScope.Segment, selected: true}).forEach((s: paper.Segment) => {
+                    s.point = s.point.add(event.delta);
+                })
+            } else {
+                const handle = projectPoint.subtract(segment.point);
+                if (dragTarget.type === 'handle-in') {
+                    segment.handleIn = handle;
+                    if (!event.modifiers.alt) {
+                        segment.handleOut = handle.multiply(-1);
+                    }
+                } else if (dragTarget.type === 'handle-out') {
+                    segment.handleOut = handle;
+                    if (!event.modifiers.alt) {
+                        segment.handleIn = handle.multiply(-1);
+                    }
+                }
             }
         }
     }, [paperScope, editMode, isSnapEnabled, showGrid]);
@@ -195,6 +245,20 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
     const handleMouseUp = useCallback(() => {
         if (!paperScope || editMode === 'pen') return;
         
+        // Finalize artwork modification by updating originalPath
+        if (editMode === 'points' && dragTargetRef.current) {
+            const path = dragTargetRef.current.segment.path;
+            
+            let artworkRoot: paper.Item = path;
+            while(artworkRoot.parent && !artworkRoot.data.isArtwork) {
+                artworkRoot = artworkRoot.parent;
+            }
+
+            if (artworkRoot.data.isArtwork) {
+                artworkRoot.data.originalPath = artworkRoot.clone({ insert: false });
+            }
+        }
+
         if (selectionRectangleRef.current) {
             const rect = selectionRectangleRef.current.bounds;
             paperScope.project.getItems({
@@ -206,7 +270,11 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
                     artwork = artwork.parent;
                 }
                 if(artwork.data.isArtwork && !artwork.layer.data.locked) {
-                    artwork.selected = true;
+                    if (editMode === 'points' && (artwork instanceof paperScope.Path || artwork instanceof paperScope.CompoundPath)) {
+                        (artwork as any).fullySelected = true;
+                    } else {
+                        artwork.selected = true;
+                    }
                 }
             });
 
@@ -215,7 +283,7 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         }
 
         panState.current.isPanning = false;
-        pointDragTargetRef.current = null;
+        dragTargetRef.current = null;
         artworkDragTargetRef.current = null;
 
         const canvas = paperScope.view.element;
@@ -225,9 +293,8 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
             canvas.style.cursor = 'default';
         }
 
-        onSelectionChange(paperScope.project.selectedItems.length);
-        onItemSelected(paperScope.project.selectedItems.length === 1 ? paperScope.project.selectedItems[0] : null);
-    }, [paperScope, editMode, onSelectionChange, onItemSelected]);
+        triggerSelectionUpdate();
+    }, [paperScope, editMode, triggerSelectionUpdate]);
 
     const handleKeyDown = useCallback((event: KeyboardEvent) => {
         if (!paperScope || event.repeat) return;
@@ -263,9 +330,10 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
 
         if (!canvas) return;
         
-        paperScope.project.deselectAll();
-        onSelectionChange(0);
-        onItemSelected(null);
+        if(editMode !== 'points') {
+            paperScope.project.deselectAll();
+        }
+        onSelectionUpdate({ items: [], segments: [] });
 
         canvas.addEventListener('wheel', handleWheel, { passive: false });
         tool.onMouseDown = handleMouseDown;
@@ -282,7 +350,7 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
             document.removeEventListener('keydown', handleKeyDown);
             document.removeEventListener('keyup', handleKeyUp);
         };
-    }, [paperScope, handleWheel, handleMouseDown, handleMouseMove, handleMouseUp, handleKeyDown, handleKeyUp, editMode, onSelectionChange, onItemSelected]);
+    }, [paperScope, handleWheel, handleMouseDown, handleMouseMove, handleMouseUp, handleKeyDown, handleKeyUp, editMode, onSelectionUpdate]);
 
     return null;
 };

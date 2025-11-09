@@ -10,6 +10,13 @@ interface KeyboardShortcuts {
   onZoomOut?: () => void;
   onZoomReset?: () => void;
   onToggleAids?: () => void;
+  onGroup?: () => void;
+  onToggleUi?: () => void;
+  onCopy?: () => void;
+  onPaste?: () => void;
+  onSelectAll?: () => void;
+  onCopyProperties?: () => void;
+  onPasteProperties?: () => void;
 }
 
 export const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
@@ -19,7 +26,7 @@ export const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
       return;
     }
 
-    const { ctrlKey, metaKey, shiftKey, key } = event;
+    const { ctrlKey, metaKey, shiftKey, altKey, key } = event;
     const isModifierPressed = ctrlKey || metaKey;
 
     // 字母選擇 (1-6)
@@ -29,6 +36,22 @@ export const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
       shortcuts.onLetterSelect?.(index);
       return;
     }
+    
+    // Alt + Cmd/Ctrl shortcuts
+    if (isModifierPressed && altKey) {
+        switch (key.toLowerCase()) {
+            case 'c':
+                event.preventDefault();
+                shortcuts.onCopyProperties?.();
+                break;
+            case 'v':
+                event.preventDefault();
+                shortcuts.onPasteProperties?.();
+                break;
+        }
+        return; // Prevent fall-through to other shortcuts
+    }
+
 
     // Ctrl/Cmd + 快捷鍵
     if (isModifierPressed) {
@@ -65,6 +88,26 @@ export const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
         case '0':
           event.preventDefault();
           shortcuts.onZoomReset?.();
+          break;
+        case 'g':
+          event.preventDefault();
+          shortcuts.onGroup?.();
+          break;
+        case '\\':
+          event.preventDefault();
+          shortcuts.onToggleUi?.();
+          break;
+        case 'c':
+          event.preventDefault();
+          shortcuts.onCopy?.();
+          break;
+        case 'v':
+          event.preventDefault();
+          shortcuts.onPaste?.();
+          break;
+        case 'a':
+          event.preventDefault();
+          shortcuts.onSelectAll?.();
           break;
       }
     }

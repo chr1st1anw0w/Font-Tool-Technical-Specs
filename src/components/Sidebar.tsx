@@ -1,7 +1,7 @@
 
 import React, { useRef, useState } from 'react';
 import clsx from 'clsx';
-import { UploadIcon, SparklesIcon } from './icons';
+import { UploadIcon, SparklesIcon, PasteIcon } from './icons';
 import AIImportPanel from './AIImportPanel';
 import LayerPanel from './LayerPanel';
 import { Layer } from '../types';
@@ -51,16 +51,45 @@ const LettersPanel: React.FC<Pick<SidebarProps, 'onSelectLetter' | 'currentLette
         }
     };
 
+    const handlePasteClick = async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text && text.includes('<svg')) {
+                onImportSVG(text);
+            } else {
+                console.warn("Clipboard does not contain valid SVG data.");
+            }
+        } catch (err) {
+            console.error("Failed to read from clipboard:", err);
+        }
+    };
+
     return (
-        <div className="p-4 space-y-8">
+        <div className="p-4 space-y-6">
+            {/* Quick Import Section */}
             <div>
-                <div className="flex items-center justify-between mb-4">
-                     <h3 className="text-sm font-bold text-[var(--text-primary)]">Resources</h3>
-                     <button className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-hover)] rounded-md transition-colors">
-                         <UploadIcon className="w-4 h-4" />
-                     </button>
+                <h3 className="text-sm font-bold text-[var(--text-primary)] mb-3">Quick Import</h3>
+                <div className="grid grid-cols-2 gap-2">
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center justify-center h-10 bg-[var(--bg-input)] hover:bg-[var(--bg-panel-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg transition-colors border border-[var(--border-color)] hover:border-[var(--border-highlight)] font-medium text-xs"
+                    >
+                        <UploadIcon className="w-4 h-4 mr-2 opacity-70" />
+                        Upload
+                    </button>
+                    <button
+                        onClick={handlePasteClick}
+                        className="flex items-center justify-center h-10 bg-[var(--bg-input)] hover:bg-[var(--bg-panel-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg transition-colors border border-[var(--border-color)] hover:border-[var(--border-highlight)] font-medium text-xs"
+                    >
+                        <PasteIcon className="w-4 h-4 mr-2 opacity-70" />
+                        Paste SVG
+                    </button>
                 </div>
-                
+            </div>
+
+            {/* Presets Section */}
+            <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)] mb-3">Resources</h3>
                 <div className="grid grid-cols-4 gap-2">
                     {letterNames.map((letter) => (
                         <button

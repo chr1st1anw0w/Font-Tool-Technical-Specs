@@ -5,9 +5,10 @@ import { drawDimensionAids } from './DimensionAids';
 import { SuperBevelService } from '../services/SuperBevelService';
 
 interface GeometryManagerProps {
-    paperScope: any;
+    paperScope: paper.PaperScope;
     letterKey: string | null;
     params: TransformParams;
+    nodeOverrides: Map<string, Partial<TransformParams>>;
     viewOptions: ViewOptions;
     onGeometryUpdate?: (paramKey: string, newValue: number) => void;
 }
@@ -16,6 +17,7 @@ const GeometryManager: React.FC<GeometryManagerProps> = ({
     paperScope,
     letterKey,
     params,
+    nodeOverrides,
     viewOptions,
 }) => {
     const aidsLayerRef = useRef<any>(null);
@@ -55,8 +57,8 @@ const GeometryManager: React.FC<GeometryManagerProps> = ({
             if (newParams.slant !== 0) matrix.shear(Math.tan(newParams.slant * (Math.PI / 180)), 0, pivot);
             workingPath.transform(matrix);
             
-            // 3. Apply Bevel
-            const finalPath = bevelServiceRef.current!.apply(workingPath, newParams);
+            // 3. Apply Bevel with overrides
+            const finalPath = bevelServiceRef.current!.apply(workingPath, path.id, newParams, nodeOverrides);
             workingPath.remove(); 
 
             // 4. Update on-screen path geometry and apply styles
@@ -79,33 +81,34 @@ const GeometryManager: React.FC<GeometryManagerProps> = ({
         applyStyles(item, newParams);
         item.data.params = { ...newParams };
 
-    }, [paperScope]);
+    }, [paperScope, nodeOverrides]);
 
     const applyAllTransformations = useCallback(() => {
         if (!paperScope) return;
         const scope = paperScope;
         const artworkItems = scope.project.getItems({ data: { isArtwork: true } });
         artworkItems.forEach((item: paper.Item) => updateItemTransformation(item, params));
-        scope.view.draw();
+        // FIX: Cast view to any to call the draw method, which is missing from paper.js type definitions.
+        (scope.view as any).draw();
     }, [params, paperScope, updateItemTransformation]);
 
     useEffect(() => {
         if (paperScope) {
-            paperScope.updateItemTransformation = updateItemTransformation;
-            paperScope.applyAllTransformations = applyAllTransformations;
+            (paperScope as any).updateItemTransformation = updateItemTransformation;
+            (paperScope as any).applyAllTransformations = applyAllTransformations;
         }
     }, [paperScope, updateItemTransformation, applyAllTransformations]);
 
     useEffect(() => {
         applyAllTransformations();
-    }, [params, applyAllTransformations]);
+    }, [params, nodeOverrides, applyAllTransformations]);
 
     // This effect handles dimension aids, which seems separate from transformations.
     // Kept as is.
     useEffect(() => {
         if (!paperScope) return;
         // ... (dimension aids logic remains the same)
-    }, [paperScope, viewOptions.showAids, letterKey]);
+    }, [paperScope, viewOptions.showGuides, letterKey]);
 
     return null;
 };
