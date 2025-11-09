@@ -1,9 +1,8 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangleIcon } from './icons';
 
 interface Props {
-  children?: ReactNode;
+  children: ReactNode;
 }
 
 interface State {
@@ -12,29 +11,33 @@ interface State {
   errorInfo?: ErrorInfo;
 }
 
-class ErrorBoundary extends React.Component<Props, State> {
-  public state: State = {
-    hasError: false
-  };
+class ErrorBoundary extends Component<Props, State> {
+  // FIX: Replaced class property state initialization with a constructor to ensure compatibility and correct type inference for the component instance, which resolves errors with missing 'props' and 'setState' properties.
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
-  public static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // FIX: This call to setState is now correctly typed as the constructor ensures proper component initialization.
     this.setState({ error, errorInfo });
   }
 
-  private handleReload = () => {
+  handleReload = () => {
     window.location.reload();
   };
 
-  private handleReset = () => {
+  handleReset = () => {
+    // FIX: This call to setState is now correctly typed as the constructor ensures proper component initialization.
     this.setState({ hasError: false, error: undefined, errorInfo: undefined });
   };
 
-  public render() {
+  render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[var(--bg-canvas)] flex items-center justify-center p-4">
@@ -45,7 +48,7 @@ class ErrorBoundary extends React.Component<Props, State> {
             transition={{ duration: 0.3 }}
           >
             <div className="w-16 h-16 mx-auto mb-4 bg-red-500/10 rounded-full flex items-center justify-center">
-              <AlertTriangleIcon className="w-10 h-10 text-red-500" />
+              <span className="text-3xl">⚠️</span>
             </div>
             
             <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
@@ -78,13 +81,13 @@ class ErrorBoundary extends React.Component<Props, State> {
             <div className="flex gap-3 justify-center">
               <button
                 onClick={this.handleReset}
-                className="h-10 px-4 text-sm font-semibold rounded-md flex items-center space-x-2 bg-[var(--bg-input)] border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-panel-hover)] transition-colors"
+                className="h-10 px-4 text-sm font-semibold rounded-md flex items-center space-x-2 bg-[var(--button-secondary-bg)] border border-[var(--button-secondary-border)] text-[var(--button-secondary-text)] hover:bg-[var(--button-secondary-hover-bg)] transition-colors"
               >
                 重試
               </button>
               <button
                 onClick={this.handleReload}
-                className="h-10 px-4 text-sm font-semibold rounded-md flex items-center space-x-2 bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] transition-all"
+                className="h-10 px-4 text-sm font-semibold rounded-md flex items-center space-x-2 bg-[var(--button-primary-bg)] text-[var(--button-primary-text)] hover:bg-gray-800 transition-all"
               >
                 重新載入
               </button>
@@ -94,6 +97,7 @@ class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
+    // FIX: Accessing this.props is now correctly typed as the constructor ensures proper component initialization.
     return this.props.children;
   }
 }

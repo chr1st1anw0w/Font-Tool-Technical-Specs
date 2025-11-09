@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRightIcon } from '../icons';
@@ -11,6 +10,7 @@ export type MenuItem =
       shortcut?: string;
       disabled?: boolean;
       children?: MenuItem[];
+      type?: 'item';
     }
   | { type: 'divider' };
 
@@ -27,119 +27,105 @@ const MenuItemComponent: React.FC<{ item: MenuItem; onClose: () => void }> = ({ 
   const itemRef = useRef<HTMLButtonElement>(null);
   const [submenuPosition, setSubmenuPosition] = useState({ top: 0, left: 0 });
 
-  // FIX: Use 'label' in item to definitively distinguish between the action item and the divider.
-  // This ensures TypeScript correctly narrows the type for destructuring below.
-  if (!('label' in item)) {
-    return <div className="h-px bg-gray-300/50 my-1.5" />;
+  if (item.type === 'divider') {
+    return <div className="h-px bg-gray-200 my-1.5 mx-1" />;
   }
 
-  const { label, icon, action, shortcut, disabled, children } = item;
-
   const handleMouseEnter = () => {
-    if (itemRef.current && children) {
+    if (itemRef.current && item.children) {
       const rect = itemRef.current.getBoundingClientRect();
-      const subMenuWidth = 240; // Corresponds to w-60
-      let left = rect.right;
-      if (left + subMenuWidth > window.innerWidth) {
-        left = rect.left - subMenuWidth;
-      }
-      setSubmenuPosition({ top: rect.top, left });
+      setSubmenuPosition({ top: rect.top, left: rect.right });
       setIsSubmenuOpen(true);
     }
   };
 
   return (
-    <div onMouseEnter={handleMouseEnter} onMouseLeave={() => setIsSubmenuOpen(false)}>
+    <div 
+        onMouseEnter={handleMouseEnter} 
+        onMouseLeave={() => setIsSubmenuOpen(false)}
+        className="relative"
+    >
       <button
         ref={itemRef}
-        disabled={disabled}
+        disabled={item.disabled}
         onClick={() => {
-          if (!disabled && action) {
-            action();
+          if (!item.disabled && item.action) {
+            item.action();
             onClose();
           }
         }}
-        className="w-full flex items-center justify-between text-left px-3 py-2 text-sm text-gray-800 rounded-md hover:bg-blue-500 hover:text-white disabled:opacity-40 disabled:bg-transparent disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+        className="w-full flex items-center justify-between text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-gray-700 cursor-default rounded-sm transition-colors"
       >
-        <div className="flex items-center gap-3">
-          {icon ? <span className="w-4 h-4 text-gray-600">{icon}</span> : <span className="w-4 h-4" />}
-          <span>{label}</span>
-        </div>
         <div className="flex items-center gap-2">
-          {shortcut && <span className="text-xs text-gray-400">{shortcut}</span>}
-          {children && <ChevronRightIcon className="w-4 h-4 text-gray-400" />}
+          <span className="w-4 h-4 flex items-center justify-center opacity-70">
+              {item.icon}
+          </span>
+          <span>{item.label}</span>
+        </div>
+        <div className="flex items-center gap-2 ml-4">
+          {item.shortcut && <span className="text-[10px] opacity-60">{item.shortcut}</span>}
+          {item.children && <ChevronRightIcon className="w-3 h-3 opacity-60" />}
         </div>
       </button>
-      {isSubmenuOpen && children && (
-        <ContextMenu
+      <AnimatePresence>
+        {isSubmenuOpen && item.children && (
+          <ContextMenu
             x={submenuPosition.left}
             y={submenuPosition.top}
-            items={children}
+            items={item.children}
             onClose={onClose}
             isSubMenu={true}
-        />
-      )}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
 const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose, isSubMenu = false }) => {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = React.useState({ top: y, left: x });
 
   useEffect(() => {
-    if (isSubMenu) return; // Only top-level menu listens for outside clicks
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-    setTimeout(() => {
+    if (!isSubMenu) {
+        const handleClickOutside = (event: MouseEvent) => {
+        if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+            onClose();
+        }
+        };
         document.addEventListener('mousedown', handleClickOutside);
-    }, 0);
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
   }, [onClose, isSubMenu]);
 
-  useEffect(() => {
-    if (menuRef.current) {
-        const menuHeight = menuRef.current.offsetHeight;
-        const menuWidth = menuRef.current.offsetWidth;
-        let top = y;
-        let left = x;
-
-        if (y + menuHeight > window.innerHeight) {
-            top = window.innerHeight - menuHeight - 10;
-        }
-        if (x + menuWidth > window.innerWidth) {
-            left = window.innerWidth - menuWidth - 10;
-        }
-        if (top < 0) top = 10;
-        if (left < 0) left = 10;
-
-        setPosition({ top, left });
-    }
-  }, [x, y, items]); // Re-calculate on items change as height might change
+  // Basic viewport collision detection
+  const style: React.CSSProperties = {
+      top: y,
+      left: x,
+  };
+  if (menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      if (y + rect.height > window.innerHeight) {
+          style.top = y - rect.height;
+      }
+      if (x + rect.width > window.innerWidth) {
+          style.left = x - rect.width;
+      }
+  }
 
   return (
-    <AnimatePresence>
-      <motion.div
-        ref={menuRef}
-        className="fixed z-50 w-60 bg-white/80 backdrop-blur-md rounded-lg shadow-2xl border border-gray-200/50 p-1.5"
-        style={{ top: position.top, left: position.left }}
-        initial={{ opacity: 0, scale: 0.95, y: isSubMenu ? 0 : -5, x: isSubMenu ? -5 : 0 }}
-        animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.1 }}
-      >
-        {items.map((item, index) => (
-          <MenuItemComponent key={index} item={item} onClose={onClose} />
-        ))}
-      </motion.div>
-    </AnimatePresence>
+    <motion.div
+      ref={menuRef}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.1 }}
+      className="fixed bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg rounded-md py-1 min-w-[160px] z-50"
+      style={isSubMenu ? { top: y, left: x, position: 'fixed' } : { top: y, left: x }}
+    >
+      {items.map((item, index) => (
+        <MenuItemComponent key={index} item={item} onClose={onClose} />
+      ))}
+    </motion.div>
   );
 };
 

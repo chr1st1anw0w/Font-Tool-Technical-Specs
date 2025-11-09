@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { SparklesIcon, BrainIcon } from './icons';
 import { aiService } from '../services/aiService';
@@ -77,10 +76,7 @@ const AIImportPanel: React.FC<AIImportPanelProps> = ({ onImportSVG }) => {
                             生成中...
                         </>
                     ) : (
-                        <>
-                            <SparklesIcon className="w-4 h-4 mr-2" />
-                            使用 AI 生成
-                        </>
+                        '使用 AI 生成'
                     )}
                 </button>
                 {error && <p className="text-xs text-red-600 mt-1">{error}</p>}

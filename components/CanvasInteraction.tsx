@@ -1,6 +1,7 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import paper from 'paper';
 import { Layer } from '../types';
+import { useGestures, GestureState } from '../hooks/useGestures';
 
 interface CanvasInteractionProps {
     paperScope: any;
@@ -9,8 +10,8 @@ interface CanvasInteractionProps {
     isSnapEnabled: boolean;
     showGrid: boolean;
     layers: Layer[];
-    // FIX: Replaced onSelectionChange and onItemSelected with a single onSelectionUpdate callback to align with parent component's prop.
     onSelectionUpdate: (selection: { items: paper.Item[], segments: paper.Segment[] }) => void;
+    onNodeSelect?: (segment: paper.Segment, point: paper.Point) => void;
 }
 
 const MIN_ZOOM = 0.1;
@@ -24,6 +25,7 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
     isSnapEnabled,
     showGrid,
     onSelectionUpdate,
+    onNodeSelect,
 }) => {
     const panState = useRef({ isPanning: false, lastPoint: null as any });
     const isSpacePressed = useRef(false);
@@ -33,6 +35,39 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
     } | null>(null);
     const artworkDragTargetRef = useRef<paper.Item | null>(null);
     const selectionRectangleRef = useRef<paper.Path.Rectangle | null>(null);
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    
+    useEffect(() => {
+        if(paperScope) {
+            canvasRef.current = paperScope.view.element;
+        }
+    }, [paperScope]);
+
+    const handleGesture = useCallback((state: GestureState, event: TouchEvent) => {
+        if (!paperScope || event.touches.length > 2) return;
+        const view = paperScope.view;
+
+        // Pan
+        if (state.pan.deltaX !== 0 || state.pan.deltaY !== 0) {
+            view.center = view.center.subtract(new paperScope.Point(state.pan.deltaX, state.pan.deltaY).divide(view.zoom));
+        }
+
+        // Pinch
+        if (state.pinch.scale !== 1 && state.pinch.center) {
+            const oldZoom = view.zoom;
+            const newZoom = Math.max(MIN_ZOOM, Math.min(oldZoom * state.pinch.scale, MAX_ZOOM));
+            
+            if (oldZoom.toFixed(4) !== newZoom.toFixed(4)) {
+                const pinchCenterInProject = view.viewToProject(new paperScope.Point(state.pinch.center));
+                view.zoom = newZoom;
+                const newPinchCenterInProject = view.viewToProject(new paperScope.Point(state.pinch.center));
+                view.center = view.center.add(pinchCenterInProject.subtract(newPinchCenterInProject));
+                onZoomChange(newZoom);
+            }
+        }
+    }, [paperScope, onZoomChange]);
+
+    useGestures(canvasRef, handleGesture);
 
     useEffect(() => {
         if (!paperScope) return;
@@ -106,7 +141,7 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         }
 
         if (editMode === 'transform' && nativeEvent.button === 0) {
-            const hitOptions = { fill: true, tolerance: 5 / paperScope.view.zoom };
+            const hitOptions = { fill: true, stroke: true, tolerance: 5 / paperScope.view.zoom };
             const hitResult = paperScope.project.hitTest(point, hitOptions);
             
             const isShiftPressed = nativeEvent.shiftKey;
@@ -148,8 +183,9 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
 
             const hitResult = paperScope.project.hitTest(point, hitOptions);
 
-            if (!nativeEvent.shiftKey && hitResult?.type !== 'segment') {
-                 paperScope.project.deselectAll();
+            if (!nativeEvent.shiftKey && hitResult?.type !== 'segment' && hitResult?.type !== 'handle-in' && hitResult?.type !== 'handle-out') {
+                 // Only deselect if we didn't hit a segment or handle, and shift isn't pressed
+                 // paperScope.project.deselectAll(); // REMOVED: This was causing issues with selecting handles
             }
 
             if (hitResult && !hitResult.item.layer.data.locked) {
@@ -158,21 +194,37 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
                  }
                  if (hitResult.type === 'stroke') {
                     const newSegment = hitResult.item.insert(hitResult.location.index + 1, point);
-                    newSegment.selected = true;
+                    // newSegment.selected = true; // Optional: select newly created segment
                     dragTargetRef.current = { type: 'segment', segment: newSegment };
-                } else if (hitResult.segment) {
-                    if (nativeEvent.shiftKey) {
-                        hitResult.segment.selected = !hitResult.segment.selected;
-                    } else {
-                        hitResult.segment.selected = true;
+                } else if (hitResult.type === 'segment' || hitResult.type === 'handle-in' || hitResult.type === 'handle-out') {
+                    if (hitResult.type === 'segment') {
+                        if (nativeEvent.shiftKey) {
+                            hitResult.segment.selected = !hitResult.segment.selected;
+                        } else {
+                            // If clicking a segment without shift, deselect other segments in the same path if they were selected
+                             paperScope.project.getItems({ selected: true, class: paperScope.Segment }).forEach((seg: paper.Segment) => {
+                                 if (seg !== hitResult.segment) seg.selected = false;
+                             });
+                            hitResult.segment.selected = true;
+                             // Trigger node select callback for context menu
+                             if (onNodeSelect) {
+                                const viewPoint = paperScope.view.projectToView(hitResult.segment.point);
+                                onNodeSelect(hitResult.segment, viewPoint);
+                             }
+                        }
                     }
-                    dragTargetRef.current = { type: hitResult.type, segment: hitResult.segment };
+                    dragTargetRef.current = { type: hitResult.type as any, segment: hitResult.segment };
                 }
+            } else {
+                 // Clicked on empty space in points mode
+                 if (!nativeEvent.shiftKey) {
+                     paperScope.project.deselectAll();
+                 }
             }
         }
         
         triggerSelectionUpdate();
-    }, [paperScope, editMode, triggerSelectionUpdate]);
+    }, [paperScope, editMode, triggerSelectionUpdate, onNodeSelect]);
 
     const handleMouseMove = useCallback((event: any) => { // This is paper's onMouseDrag
         if (!paperScope || editMode === 'pen') return;
@@ -194,7 +246,17 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
         }
 
         if (editMode === 'transform' && artworkDragTargetRef.current && (event.event as MouseEvent).buttons === 1) {
-            const delta = new paperScope.Point(event.delta);
+            let delta = new paperScope.Point(event.delta);
+            
+            // Shift to constrain movement
+            if (event.modifiers.shift) {
+                if (Math.abs(delta.x) > Math.abs(delta.y)) {
+                    delta.y = 0;
+                } else {
+                    delta.x = 0;
+                }
+            }
+
             paperScope.project.selectedItems.forEach((item: paper.Item) => {
                  if (!item.layer.data.locked) {
                     item.position = item.position.add(delta);
@@ -219,22 +281,50 @@ const CanvasInteraction: React.FC<CanvasInteractionProps> = ({
             }
             
             const segment = dragTarget.segment;
+            // Cast segment to any to access custom 'data' property
+            const nodeType = (segment as any).data?.type || 'smooth';
 
             if (dragTarget.type === 'segment') {
+                let delta = event.delta;
+                 // Shift to constrain movement
+                if (event.modifiers.shift) {
+                     if (Math.abs(delta.x) > Math.abs(delta.y)) {
+                        delta.y = 0;
+                    } else {
+                        delta.x = 0;
+                    }
+                }
+
                 // Also move other selected segments
                 paperScope.project.getItems({class: paperScope.Segment, selected: true}).forEach((s: paper.Segment) => {
-                    s.point = s.point.add(event.delta);
+                    s.point = s.point.add(delta);
                 })
             } else {
-                const handle = projectPoint.subtract(segment.point);
+                // Handle dragging
+                let handle = projectPoint.subtract(segment.point);
+                
+                // Shift to constrain angle to 45 degree increments
+                if (event.modifiers.shift) {
+                    const angle = handle.angle;
+                    const snappedAngle = Math.round(angle / 45) * 45;
+                    handle.angle = snappedAngle;
+                }
+
                 if (dragTarget.type === 'handle-in') {
                     segment.handleIn = handle;
-                    if (!event.modifiers.alt) {
+                    // Symmetry logic based on node type
+                    if (nodeType === 'smooth') {
+                         segment.handleOut = handle.normalize().multiply(-segment.handleOut.length || -handle.length);
+                    } else if (nodeType === 'symmetric') {
                         segment.handleOut = handle.multiply(-1);
                     }
+                    // 'corner' type does not affect the other handle
                 } else if (dragTarget.type === 'handle-out') {
                     segment.handleOut = handle;
-                    if (!event.modifiers.alt) {
+                     // Symmetry logic
+                    if (nodeType === 'smooth') {
+                        segment.handleIn = handle.normalize().multiply(-segment.handleIn.length || -handle.length);
+                    } else if (nodeType === 'symmetric') {
                         segment.handleIn = handle.multiply(-1);
                     }
                 }

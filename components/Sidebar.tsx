@@ -1,18 +1,16 @@
-
-import React, { useRef, useState } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { UploadIcon, SparklesIcon } from './icons';
+import { UploadIcon, SparklesIcon, LayersIcon } from './icons';
 import AIImportPanel from './AIImportPanel';
 import LayerPanel from './LayerPanel';
 import { Layer } from '../types';
 
-type SidebarTab = 'letters' | 'layers' | 'settings';
-
 interface SidebarProps {
-    activeTab: SidebarTab;
     onSelectLetter: (key: string, svgString: string) => void;
     currentLetterKey: string | null;
     onImportSVG: (svgString: string) => void;
+    // Layer props
     layers: Layer[];
     activeLayerId: string | null;
     onAddLayer: () => void;
@@ -22,22 +20,33 @@ interface SidebarProps {
     onSetActiveLayer: (id: string) => void;
 }
 
+// SKYWALK 字母的 SVG 數據
 const letters: { [key: string]: string } = {
-    'S': `<svg viewBox="0 0 652 706"><g fill="white"><rect x="476" y="293" width="100" height="350"/><rect x="76" y="43" width="100" height="350"/><path d="M576 643H76V543H576V643Z"/><path d="M576 393H76V293H576V393Z"/><path d="M576 143H76V43H576V143Z"/><path d="M576 643H426L576 493V643Z"/><path d="M576 413L456 293H576V413Z"/><path d="M226 393H76V243L226 393Z"/><path d="M76 163V43H196L76 163Z"/></g></svg>`,
-    'K': `<svg viewBox="0 0 493 601"><path d="M241.49 250.5H251.42V250.5H310L460 400.5V600.5H360V350.5H100V600.5H0V0.5H100V250.5H100.06L350.2 1.9043L491.98 -0.000183105L241.49 250.5Z" fill="white"/></svg>`,
-    'Y': `<svg viewBox="0 0 460 600"><path d="M100 250H360V0H460V230L340 350H280V600H180V350H120L0 230V0H100V250Z" fill="white"/></svg>`,
-    'W': `<svg viewBox="0 0 560 600"><path d="M100 500H230V0H330V500H460V0H560V480L440 600H350L280 530L210 600H120L0 480V0H100V500Z" fill="white"/></svg>`,
-    'A': `<svg viewBox="0 0 460 600"><path d="M360 350L100 350L100 600H0L0 120L120 0L340 0L460 120L460 600H360L360 350ZM360 100L100 100L100 250L360 250L360 100Z" fill="white"/></svg>`,
-    'L': `<svg viewBox="0 0 330 600"><path d="M100 500H330V600H120L0 480V0H100V500Z" fill="white"/></svg>`,
-    // Added more letters for demo visually
-    'B': `<svg viewBox="0 0 600 600"><path d="M0 0h450c82.84 0 150 67.16 150 150s-67.16 150-150 150v0c82.84 0 150 67.16 150 150S532.84 600 450 600H0V0z M100 100v150h350c27.61 0 50-22.39 50-50s-22.39-50-50-50H100z M100 350v150h350c27.61 0 50-22.39 50-50s-22.39-50-50-50H100z" fill="white"/></svg>`,
-    'C': `<svg viewBox="0 0 600 600"><path d="M600 150v100H450c-82.84 0-150 67.16-150 150s67.16 150 150 150h150v100H450C201.47 650 0 448.53 0 200S201.47 -50 450 -50h150v100H450c-82.84 0-150 67.16-150 150s67.16 150 150 150h150z" fill="white"/></svg>`,
+    'S': `<svg viewBox="0 0 652 706">
+            <g fill="white">
+                <rect id="s-right-stem" x="476" y="293" width="100" height="350"/>
+                <rect id="s-left-stem" x="76" y="43" width="100" height="350"/>
+                <path id="s-bottom-bar" d="M576 643H76V543H576V643Z"/>
+                <path id="s-mid-bar" d="M576 393H76V293H576V393Z"/>
+                <path id="s-top-bar" d="M576 143H76V43H576V143Z"/>
+                <path id="s-corner-br" d="M576 643H426L576 493V643Z"/>
+                <path id="s-corner-tr" d="M576 413L456 293H576V413Z"/>
+                <path id="s-corner-bl" d="M226 393H76V243L226 393Z"/>
+                <path id="s-corner-tl" d="M76 163.002V43.002H196L76 163.002Z"/>
+            </g>
+        </svg>`,
+    'K': `<svg viewBox="0 0 493 601"><g transform="translate(-3279.11, -1.64062)"><path d="M3520.6 252.14H3530.53L3530.53 252.141H3589.11L3739.11 402.141V602.141H3639.11V352.141H3379.11V602.141H3279.11V2.14062H3379.11V252.141H3379.17L3629.31 3.54492L3771.09 1.64062L3520.6 252.14Z" fill="white"/></g></svg>`,
+    'Y': `<svg viewBox="0 0 460 600"><g transform="translate(-1140.58, -2.14062)"><path d="M1240.58 252.141H1500.58V2.14062H1600.58V232.141L1480.58 352.141H1420.58V602.141H1320.58V352.141H1260.58L1140.58 232.141V2.14062H1240.58V252.141Z" fill="white"/></g></svg>`,
+    'W': `<svg viewBox="0 0 560 600"><g transform="translate(-1678.58, -2.14062)"><path d="M1778.58 502.141H1908.58V2.14062H2008.58V502.141H2138.58V2.14062H2238.58V482.141L2118.58 602.141H2028.58L1958.58 532.141L1888.58 602.141H1798.58L1678.58 482.141V2.14062H1778.58V502.141Z" fill="white"/></g></svg>`,
+    'A': `<svg viewBox="0 0 460 600"><g transform="translate(-2312.58, -2.14064)"><path d="M2672.58 352.141L2412.58 352.141L2412.58 602.141L2312.58 602.141L2312.58 122.141L2432.58 2.14065L2652.58 2.14064L2772.58 122.141L2772.58 602.141L2672.58 602.141L2672.58 352.141ZM2672.58 102.141L2412.58 102.141L2412.58 252.141L2672.58 252.141L2672.58 102.141Z" fill="white"/></g></svg>`,
+    'L': `<svg viewBox="0 0 330 600"><g transform="translate(-2864.58, -2.14062)"><path d="M2964.58 502.141H3194.58V602.141H2984.58L2864.58 482.141V2.14062H2964.58V502.141Z" fill="white"/></g></svg>`,
 };
 
-const letterNames = Object.keys(letters);
+const letterNames = ['S', 'K', 'Y', 'W', 'A', 'L'];
 
 const LettersPanel: React.FC<Pick<SidebarProps, 'onSelectLetter' | 'currentLetterKey' | 'onImportSVG'>> = ({ onSelectLetter, currentLetterKey, onImportSVG }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [pasteContent, setPasteContent] = useState('');
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -47,30 +56,33 @@ const LettersPanel: React.FC<Pick<SidebarProps, 'onSelectLetter' | 'currentLette
                 onImportSVG(e.target?.result as string);
             };
             reader.readAsText(file);
-            event.target.value = ''; 
+            event.target.value = ''; // Reset file input
+        }
+    };
+    
+    const handlePasteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const content = e.target.value;
+        setPasteContent(content);
+        if (content.trim().startsWith('<svg')) {
+             onImportSVG(content);
         }
     };
 
     return (
-        <div className="p-4 space-y-8">
+        <div className="p-4 space-y-6">
             <div>
-                <div className="flex items-center justify-between mb-4">
-                     <h3 className="text-sm font-bold text-[var(--text-primary)]">Resources</h3>
-                     <button className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-hover)] rounded-md transition-colors">
-                         <UploadIcon className="w-4 h-4" />
-                     </button>
-                </div>
-                
-                <div className="grid grid-cols-4 gap-2">
+                <h3 className="text-sm font-semibold text-gray-500 mb-3">字母</h3>
+                <div className="grid grid-cols-3 gap-2">
                     {letterNames.map((letter) => (
                         <button
                             key={letter}
                             onClick={() => onSelectLetter(letter, letters[letter])}
+                            title={`新增字母 ${letter} 到畫布`}
                             className={clsx(
-                                'aspect-square rounded-xl flex items-center justify-center text-xl font-bold font-sans transition-all duration-200',
+                                'h-16 rounded-lg flex items-center justify-center text-3xl font-bold font-sans transition-colors',
                                 currentLetterKey === letter
-                                    ? 'bg-[var(--accent-primary)] text-white shadow-md'
-                                    : 'bg-[var(--bg-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-panel-hover)] hover:text-white border border-transparent hover:border-[var(--border-highlight)]'
+                                    ? 'bg-gray-900 text-white'
+                                    : 'bg-white text-gray-800 hover:bg-gray-100 border border-gray-200'
                             )}
                         >
                             {letter}
@@ -79,35 +91,72 @@ const LettersPanel: React.FC<Pick<SidebarProps, 'onSelectLetter' | 'currentLette
                 </div>
             </div>
 
-            <div className="pt-4 border-t border-[var(--border-color)]">
-                 <AIImportPanel onImportSVG={onImportSVG} />
+            <AIImportPanel onImportSVG={onImportSVG} />
+
+            <div>
+                <h3 className="text-sm font-semibold text-gray-500 mb-3">手動匯入</h3>
+                <div className="space-y-2">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept=".svg"
+                        onChange={handleFileChange}
+                    />
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        title="從電腦上傳 SVG 檔案"
+                        className="w-full flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:bg-gray-100 hover:border-gray-400 transition-colors"
+                    >
+                        <UploadIcon className="w-6 h-6 mb-1" />
+                        <span className="text-sm font-medium">上傳檔案</span>
+                    </button>
+                    <div className="text-center text-gray-400 text-xs">或</div>
+                    <textarea
+                        value={pasteContent}
+                        onChange={handlePasteChange}
+                        placeholder="在此貼上 SVG 程式碼..."
+                        title="貼上 SVG 程式碼以匯入"
+                        className="w-full h-24 p-2 text-xs font-mono bg-white border border-gray-200 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
             </div>
-            
-            <input type="file" ref={fileInputRef} className="hidden" accept=".svg" onChange={handleFileChange} />
         </div>
     );
 }
 
 const Sidebar: React.FC<SidebarProps> = (props) => {
+    const [activeTab, setActiveTab] = useState<'letters' | 'layers'>('letters');
+    
     return (
-        <div className="h-full flex flex-col bg-[var(--bg-panel)]">
-            <div className="h-14 flex-shrink-0 flex items-center px-5 border-b border-[var(--border-color)]">
-                <h2 className="font-semibold text-[var(--text-primary)] tracking-tight">
-                    {props.activeTab === 'letters' && 'Assets Library'}
-                    {props.activeTab === 'layers' && 'Layers'}
-                    {props.activeTab === 'settings' && 'Settings'}
-                </h2>
+        <aside
+            className="w-[256px] h-full bg-gray-50 flex flex-col overflow-y-auto"
+            aria-label="Main Sidebar"
+        >
+            <div className="flex-shrink-0 border-b border-gray-200 flex">
+                <TabButton 
+                    label="字母" 
+                    icon={<SparklesIcon className="w-4 h-4" />} 
+                    isActive={activeTab === 'letters'} 
+                    onClick={() => setActiveTab('letters')} 
+                />
+                <TabButton 
+                    label="圖層" 
+                    icon={<LayersIcon className="w-4 h-4" />} 
+                    isActive={activeTab === 'layers'} 
+                    onClick={() => setActiveTab('layers')} 
+                />
             </div>
             
-            <div className="flex-grow overflow-y-auto custom-scrollbar">
-                {props.activeTab === 'letters' && (
+            <div className="flex-grow">
+                {activeTab === 'letters' && (
                     <LettersPanel 
                         onSelectLetter={props.onSelectLetter}
                         currentLetterKey={props.currentLetterKey}
                         onImportSVG={props.onImportSVG}
                     />
                 )}
-                 {props.activeTab === 'layers' && (
+                 {activeTab === 'layers' && (
                     <LayerPanel
                         layers={props.layers}
                         activeLayerId={props.activeLayerId}
@@ -118,14 +167,25 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                         onSetActiveLayer={props.onSetActiveLayer}
                     />
                 )}
-                {props.activeTab === 'settings' && (
-                    <div className="p-5 text-[var(--text-secondary)] text-sm">
-                        Settings panel placeholder.
-                    </div>
-                )}
             </div>
-        </div>
+        </aside>
     );
 };
+
+const TabButton: React.FC<{ label: string; icon: React.ReactNode; isActive: boolean; onClick: () => void }> = ({ label, icon, isActive, onClick }) => {
+    return (
+        <button
+            onClick={onClick}
+            title={`切換到 ${label} 面板`}
+            className={clsx(
+                "flex-1 flex items-center justify-center gap-2 p-3 text-sm font-semibold border-b-2 transition-colors",
+                isActive ? "text-blue-600 border-blue-600 bg-blue-50" : "text-gray-500 border-transparent hover:bg-gray-100"
+            )}
+        >
+            {icon}
+            {label}
+        </button>
+    )
+}
 
 export default Sidebar;

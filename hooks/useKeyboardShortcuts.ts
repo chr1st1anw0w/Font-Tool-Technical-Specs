@@ -17,6 +17,9 @@ interface KeyboardShortcuts {
   onSelectAll?: () => void;
   onCopyProperties?: () => void;
   onPasteProperties?: () => void;
+  onSetSelectionTool?: () => void;
+  onSetNodeTool?: () => void;
+  onSetPenTool?: () => void;
 }
 
 export const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
@@ -52,6 +55,27 @@ export const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
         return; // Prevent fall-through to other shortcuts
     }
 
+    // Tool selection shortcuts (no modifier)
+    if (!isModifierPressed && !altKey && !shiftKey) {
+        switch (key.toLowerCase()) {
+            case 'v':
+                event.preventDefault();
+                shortcuts.onSetSelectionTool?.();
+                break;
+            case 'a':
+                event.preventDefault();
+                shortcuts.onSetNodeTool?.();
+                break;
+            case 'p':
+                event.preventDefault();
+                shortcuts.onSetPenTool?.();
+                break;
+            case 'h':
+                 event.preventDefault();
+                 shortcuts.onToggleAids?.();
+                 break;
+        }
+    }
 
     // Ctrl/Cmd + 快捷鍵
     if (isModifierPressed) {
@@ -110,16 +134,6 @@ export const useKeyboardShortcuts = (shortcuts: KeyboardShortcuts) => {
           shortcuts.onSelectAll?.();
           break;
       }
-    }
-
-    // 其他快捷鍵
-    switch (key) {
-      case 'h':
-        if (!isModifierPressed) {
-          event.preventDefault();
-          shortcuts.onToggleAids?.();
-        }
-        break;
     }
   }, [shortcuts]);
 

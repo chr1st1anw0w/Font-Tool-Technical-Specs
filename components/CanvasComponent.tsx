@@ -24,6 +24,7 @@ interface CanvasComponentProps {
     penSettings: PenToolSettings;
     onPathComplete: (path: paper.Path) => void;
     onSelectionUpdate: (selection: { items: paper.Item[], segments: paper.Segment[] }) => void;
+    onNodeSelect?: (segment: paper.Segment, point: paper.Point) => void;
 }
 
 const CanvasComponent: React.FC<CanvasComponentProps> = ({
@@ -42,6 +43,7 @@ const CanvasComponent: React.FC<CanvasComponentProps> = ({
     penSettings,
     onPathComplete,
     onSelectionUpdate,
+    onNodeSelect,
 }) => {
     const [paperScope, setPaperScope] = useState<any>(null);
 
@@ -73,6 +75,7 @@ const CanvasComponent: React.FC<CanvasComponentProps> = ({
                                 showGrid={showGrid}
                                 layers={layers}
                                 onSelectionUpdate={onSelectionUpdate}
+                                onNodeSelect={onNodeSelect}
                             />
                             <GeometryManager
                                 paperScope={paperScope}

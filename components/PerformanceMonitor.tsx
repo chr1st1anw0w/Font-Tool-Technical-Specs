@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ActivityIcon } from './icons';
 
 interface PerformanceStats {
   fps: number;
@@ -56,10 +54,10 @@ const PerformanceMonitor: React.FC = () => {
       {/* 切換按鈕 */}
       <button
         onClick={() => setIsVisible(!isVisible)}
-        className="fixed bottom-4 left-4 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--button-secondary-hover-bg)] transition-colors z-50 shadow"
+        className="fixed bottom-4 left-4 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-color)] rounded-full flex items-center justify-center text-lg text-[var(--text-secondary)] hover:bg-[var(--button-secondary-hover-bg)] transition-colors z-50 shadow"
         title="效能監控"
       >
-        <ActivityIcon className="w-5 h-5" />
+        📊
       </button>
 
       {/* 效能面板 */}

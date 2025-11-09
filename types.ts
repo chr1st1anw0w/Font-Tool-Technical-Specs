@@ -9,6 +9,12 @@ export enum BevelType {
   CONCAVE_ROUND = 'concave_round', // 內凹圓角
 }
 
+export enum NodeType {
+  CORNER = 'corner',
+  SMOOTH = 'smooth',
+  SYMMETRIC = 'symmetric',
+}
+
 export interface TransformParams {
   weight: number;
   width: number;
@@ -20,13 +26,19 @@ export interface TransformParams {
   bevelType: BevelType;
   bevelSize: number;
   chamferAngle: number;
-  segments?: number;
 }
 
 export interface PenToolSettings {
   strokeWidth: number;
   strokeColor: string;
   fillColor: string | null;
+  defaultNodeType: 'corner' | 'smooth' | 'symmetric';
+  snapToGrid: boolean;
+  snapToPath: boolean;
+  showHandles: boolean;
+  autoClose: boolean;
+  handleLength: number;
+  closeThreshold: number;
 }
 
 

@@ -1,7 +1,6 @@
-
 import { useState, useCallback, useEffect } from 'react';
 
-const useHistory = <T extends Record<string, any>>(key: string, initialValue: T) => {
+const useHistory = <T,>(key: string, initialValue: T) => {
     const [history, setHistory] = useState<T[]>(() => {
         try {
             const item = window.localStorage.getItem(key);
@@ -24,33 +23,31 @@ const useHistory = <T extends Record<string, any>>(key: string, initialValue: T)
     }, [history, key]);
 
     const setState = useCallback((action: T | ((prevState: T) => T)) => {
-         setHistory(prevHistory => {
-            const currentState = prevHistory[index];
-            const newState = typeof action === 'function' 
-                ? (action as (prevState: T) => T)(currentState) 
-                : action;
+        const newState = typeof action === 'function' 
+            ? (action as (prevState: T) => T)(history[index]) 
+            : action;
+        
+        if (JSON.stringify(newState) === JSON.stringify(history[index])) {
+            return;
+        }
 
-            if (JSON.stringify(newState) === JSON.stringify(currentState)) {
-                return prevHistory;
-            }
-            
-            const newHistory = prevHistory.slice(0, index + 1);
-            newHistory.push(newState);
-            setIndex(newHistory.length - 1);
-            return newHistory;
-         });
-    }, [index]);
+        const newHistory = history.slice(0, index + 1);
+        newHistory.push(newState);
+        setHistory(newHistory);
+        setIndex(newHistory.length - 1);
+    }, [history, index]);
 
     const undo = useCallback(() => {
-        setIndex(prevIndex => Math.max(0, prevIndex - 1));
-    }, []);
+        if (index > 0) {
+            setIndex(prevIndex => prevIndex - 1);
+        }
+    }, [index]);
 
     const redo = useCallback(() => {
-        setHistory(currentHistory => {
-            setIndex(prevIndex => Math.min(currentHistory.length - 1, prevIndex + 1));
-            return currentHistory;
-        });
-    }, []);
+        if (index < history.length - 1) {
+            setIndex(prevIndex => prevIndex + 1);
+        }
+    }, [index, history.length]);
     
     return {
         state: history[index],
