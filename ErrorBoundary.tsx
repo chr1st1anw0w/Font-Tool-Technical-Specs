@@ -1,3 +1,4 @@
+
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 
@@ -12,32 +13,28 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
-  // FIX: Replaced class property state initialization with a constructor to ensure compatibility and correct type inference for the component instance, which resolves errors with missing 'props' and 'setState' properties.
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false };
-  }
+  public state: State = {
+    hasError: false
+  };
 
-  static getDerivedStateFromError(error: Error): State {
+  public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
-    // FIX: This call to setState is now correctly typed as the constructor ensures proper component initialization.
     this.setState({ error, errorInfo });
   }
 
-  handleReload = () => {
+  private handleReload = () => {
     window.location.reload();
   };
 
-  handleReset = () => {
-    // FIX: This call to setState is now correctly typed as the constructor ensures proper component initialization.
+  private handleReset = () => {
     this.setState({ hasError: false, error: undefined, errorInfo: undefined });
   };
 
-  render() {
+  public render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[var(--bg-canvas)] flex items-center justify-center p-4">
@@ -97,7 +94,6 @@ class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    // FIX: Accessing this.props is now correctly typed as the constructor ensures proper component initialization.
     return this.props.children;
   }
 }

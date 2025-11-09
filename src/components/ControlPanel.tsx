@@ -80,35 +80,34 @@ const NodeBevelOverridePanel: React.FC<NodeBevelOverridePanelProps> = ({
             isLinked ? "bg-gray-50 border-gray-200" : "bg-blue-50 border-blue-200"
         )}>
              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    <p className={clsx("text-sm font-semibold", isLinked ? "text-gray-700" : "text-blue-800")}>
-                        {selectedSegmentIds.length} 個節點
-                    </p>
-                     <button
-                        onClick={handleToggleLink}
-                        className={clsx(
-                            "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors",
-                            isLinked 
-                                ? "bg-gray-200 text-gray-700 hover:bg-gray-300" 
-                                : "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                        )}
-                        title={isLinked ? "點擊以取消連結（設定獨立參數）" : "點擊以連結至全域設定"}
-                    >
-                        {isLinked ? (
-                            <>
-                                <LinkIcon className="w-3.5 h-3.5" />
-                                已連結全域
-                            </>
-                        ) : (
-                            <>
-                                <UnlinkIcon className="w-3.5 h-3.5" />
-                                獨立設定
-                            </>
-                        )}
-                    </button>
+                <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-gray-900">獨立倒角設定</span>
+                    <span className={clsx("text-xs", isLinked ? "text-gray-500" : "text-blue-600")}>
+                        {selectedSegmentIds.length} 個節點已選取
+                    </span>
                 </div>
+                 <button
+                    onClick={handleToggleLink}
+                    type="button"
+                    className={clsx(
+                        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+                        !isLinked ? 'bg-blue-600' : 'bg-gray-200'
+                    )}
+                    role="switch"
+                    aria-checked={!isLinked}
+                    title={isLinked ? "點擊啟用獨立設定" : "點擊回復全域設定"}
+                >
+                    <span className="sr-only">Toggle independent settings</span>
+                    <span
+                        aria-hidden="true"
+                        className={clsx(
+                            "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                            !isLinked ? 'translate-x-5' : 'translate-x-0'
+                        )}
+                    />
+                </button>
             </div>
-            <div className={clsx("transition-opacity", isLinked && "opacity-50 pointer-events-none grayscale")}>
+            <div className={clsx("transition-all duration-200", isLinked && "opacity-50 pointer-events-none grayscale filter")}>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">倒角類型</label>
                 <div className="grid grid-cols-3 gap-2">
                     {bevelTypes.map(({ key, label, icon: Icon }) => (
@@ -130,17 +129,17 @@ const NodeBevelOverridePanel: React.FC<NodeBevelOverridePanelProps> = ({
                         </button>
                     ))}
                 </div>
-            </div>
-            <div className={clsx("transition-opacity", isLinked && "opacity-50 pointer-events-none")}>
-                <Slider
-                    label="倒角尺寸"
-                    value={currentBevelSize ?? 0}
-                    onChange={(v) => onNodeOverrideChange(selectedSegmentIds, { bevelSize: v })}
-                    min={0}
-                    max={50}
-                    step={0.5}
-                    disabled={isLinked || currentBevelType === BevelType.NONE}
-                />
+                <div className="mt-4">
+                    <Slider
+                        label="倒角尺寸"
+                        value={currentBevelSize ?? 0}
+                        onChange={(v) => onNodeOverrideChange(selectedSegmentIds, { bevelSize: v })}
+                        min={0}
+                        max={50}
+                        step={0.5}
+                        disabled={isLinked || currentBevelType === BevelType.NONE}
+                    />
+                </div>
             </div>
         </div>
     );

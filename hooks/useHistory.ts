@@ -1,6 +1,7 @@
+
 import { useState, useCallback, useEffect } from 'react';
 
-const useHistory = <T,>(key: string, initialValue: T) => {
+const useHistory = <T extends object>(key: string, initialValue: T) => {
     const [history, setHistory] = useState<T[]>(() => {
         try {
             const item = window.localStorage.getItem(key);

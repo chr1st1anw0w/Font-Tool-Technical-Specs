@@ -16,10 +16,7 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          // FIX: Replace `__dirname` which is not available in ES modules.
-          // `path.resolve('./')` resolves from the current working directory,
-          // which is the project root where vite is run.
-          '@': path.resolve('./'),
+          '@': path.resolve('./src'),
         }
       }
     };

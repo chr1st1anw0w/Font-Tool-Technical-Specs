@@ -37,21 +37,17 @@ const MAX_ZOOM = 16;
 const MIN_PANEL_WIDTH = 240;
 const MAX_PANEL_WIDTH = 500;
 
-const DEFAULT_SVG_CONTENT = `<svg width="4530" height="1194" viewBox="0 0 4530 1194" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="4530" height="1194" fill="white"/>
-<path d="M863.019 396.68H463.019V546.68H748.163C764.076 546.68 779.337 553.001 790.589 564.253L845.445 619.106C856.697 630.359 863.019 645.62 863.019 661.533V800.982C863.019 816.895 856.697 832.156 845.445 843.409L809.748 879.106C798.496 890.358 783.234 896.68 767.321 896.68H363.019V796.68H763.019V646.68H477.869C461.956 646.68 446.694 640.358 435.442 629.105L380.592 574.253C369.34 563.001 363.019 547.74 363.019 531.828V441.533C363.019 425.62 369.34 410.358 380.592 399.106L465.445 314.253C476.697 303.001 491.959 296.68 507.872 296.68H863.019V396.68Z" fill="black"/>
-<rect x="863.019" y="296.68" width="80" height="600" fill="white"/>
-<path d="M1184.5 546.929L1290.15 546.93C1306.07 546.93 1321.33 553.251 1332.58 564.504L1417.43 649.356C1428.68 660.608 1435 675.869 1435 691.782V896.93H1335V646.93H1043.02V896.93H943.019V296.43H1043.02L1043.08 546.93L1277.57 313.874C1288.81 302.701 1304.01 296.43 1319.86 296.43L1435 296.43C1337.18 394.256 1282.33 449.103 1184.5 546.929Z" fill="black"/>
-<rect x="1435" y="296.68" width="60" height="600" fill="white"/>
-<path d="M1595 556.679H1855V296.68H1955V544.253C1955 552.21 1951.84 559.84 1946.21 565.466L1873.79 637.893C1868.16 643.519 1860.53 646.68 1852.58 646.68H1775V896.68H1675V646.68H1609.86C1593.94 646.68 1578.68 640.359 1567.43 629.107L1512.58 574.253C1501.32 563.001 1495 547.739 1495 531.826V296.68H1595V556.679Z" fill="black"/>
-<rect x="1955" y="296.68" width="80" height="600" fill="white"/>
-<path d="M2135 796.68H2295V296.68H2395V796.68H2555V296.68H2655V781.826C2655 797.74 2648.68 813.001 2637.43 824.253L2582.57 879.107C2571.32 890.359 2556.06 896.68 2540.15 896.68H2439.85C2423.94 896.68 2408.68 890.358 2397.43 879.106L2345 826.68L2292.57 879.106C2281.32 890.358 2266.06 896.68 2250.15 896.68H2149.85C2133.94 896.68 2118.68 890.358 2107.43 879.106L2052.57 824.253C2041.32 813.001 2035 797.74 2035 781.827V296.68H2135V796.68Z" fill="black"/>
-<rect x="2655" y="296.68" width="80" height="600" fill="white"/>
-<path fill-rule="evenodd" clip-rule="evenodd" d="M3095 736.68L2835 736.68L2835 896.68H2735L2735 441.533C2735 425.62 2741.32 410.358 2752.57 399.106L2837.43 314.253C2848.68 303.001 2863.94 296.68 2879.85 296.68L3050.15 296.68C3066.06 296.68 3081.32 303.001 3092.57 314.253L3177.43 399.106C3188.68 410.358 3195 425.62 3195 441.532L3195 896.68H3095V736.68ZM3095 396.68L2835 396.68L2835 636.68H3095V396.68Z" fill="black"/>
-<rect x="3195" y="296.68" width="60" height="600" fill="white"/>
-<path d="M3355 796.68H3675V896.68H3399.85C3383.94 896.68 3368.68 890.358 3357.43 879.106L3272.57 794.253C3261.32 783.001 3255 767.74 3255 751.827V296.68H3355V796.68Z" fill="black"/>
-<rect x="3675" y="296.68" width="60" height="600" fill="white"/>
-<path d="M3976.48 546.929L4082.13 546.93C4098.05 546.93 4113.31 553.251 4124.56 564.504L4209.41 649.356C4220.66 660.608 4226.98 675.869 4226.98 691.782V896.93H4126.98V646.93H3835V896.93H3735V296.43H3835L3835.06 546.93L4069.55 313.874C4080.79 302.701 4095.99 296.43 4111.84 296.43L4226.98 296.43C4129.16 394.256 4074.31 449.103 3976.48 546.929Z" fill="black"/>
+const DEFAULT_SVG_CONTENT = `<svg width="8235" height="2250" viewBox="0 0 8235 2250" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="8235" height="2250" fill="white"/>
+<g>
+<path d="M1385.36 685.35L1214.64 514.65C1205.27 505.27 1192.55 500 1179.29 500H720.71C707.45 500 694.73 505.27 685.35 514.65L514.65 685.35C505.27 694.73 500 707.44 500 720.71V979.29C500 992.55 505.27 1005.27 514.65 1014.64L685.36 1185.36C694.74 1194.73 707.46 1200 720.72 1200H1200.01C1227.62 1200 1250.01 1222.39 1250.01 1250V1550C1250.01 1577.61 1227.62 1600 1200.01 1600H700C672.39 1600 650 1577.61 650 1550V1400C650 1372.39 627.61 1350 600 1350H500V1529.29C500 1542.55 505.27 1555.27 514.65 1564.64L685.36 1735.36C694.74 1744.73 707.46 1750 720.72 1750H1179.3C1192.56 1750 1205.28 1744.73 1214.65 1735.36L1385.37 1564.64C1394.74 1555.27 1400.01 1542.55 1400.01 1529.29V1270.71C1400.01 1257.45 1394.74 1244.73 1385.37 1235.36L1214.65 1064.64C1205.28 1055.27 1192.56 1050 1179.3 1050H700C672.39 1050 650 1027.61 650 1000V700C650 672.39 672.39 650 700 650H1200C1227.61 650 1250 672.39 1250 700V850C1250 877.61 1272.39 900 1300 900H1400V720.71C1400 707.45 1394.73 694.73 1385.36 685.35Z" fill="#CECECE"/>
+<path d="M2450 500H2238.11L1700 1038.11V550C1700 522.39 1677.61 500 1650 500H1556C1552.69 500 1550 502.69 1550 506V1750H1650C1677.61 1750 1700 1727.61 1700 1700V1250C1700 1222.39 1722.39 1200 1750 1200H2179.29C2192.55 1200 2205.27 1214.64L2285.21 1285.21C2294.67 1294.67 2299.95 1307.53 2299.85 1320.92L2296.84 1750H2450V1381.07C2450 1361.18 2442.1 1342.1 2428.03 1328.03L2171.97 1071.97C2157.9 1057.9 2138.82 1050 2118.93 1050H1900.24L2450 500.24V500Z" fill="#CECECE"/>
+<path d="M3400 500C3372.39 500 3350 522.39 3350 550V1050C3350 1077.61 3327.61 1100 3300 1100H2800C2772.39 1100 2750 1077.61 2750 1050V550C2750 522.39 2727.61 500 2700 500H2600V1029.29C2600 1042.55 2605.27 1055.27 2614.64 1064.64L2785.36 1235.36C2794.73 1244.73 2807.45 1250 2820.71 1250H2975V1750H3125V1250H3279.29C3292.55 1250 3305.27 1244.73 3314.64 1235.36L3485.36 1064.64C3494.73 1055.27 3500 1042.55 3500 1029.29V500H3400Z" fill="#CECECE"/>
+<path d="M4570 500C4558.95 500 4550 508.95 4550 520V1550C4550 1577.61 4527.61 1600 4500 1600H4300C4272.39 1600 4250 1577.61 4250 1550V520C4250 508.95 4241.05 500 4230 500H4120C4108.95 500 4100 508.95 4100 520V1550C4100 1577.61 4077.61 1600 4050 1600H3850C3822.39 1600 3800 1577.61 3800 1550V520C3800 508.95 3791.05 500 3780 500H3650V1529.29C3650 1542.55 3655.27 1555.27 3664.64 1564.64L3835.36 1735.36C3844.73 1744.73 3857.45 1750 3870.71 1750H4029.29C4042.55 1750 4055.27 1744.73 4064.64 1735.36L4175 1625L4285.36 1735.36C4294.73 1744.73 4307.45 1750 4320.71 1750H4479.29C4492.55 1750 4505.27 1744.73 4514.64 1735.36L4685.36 1564.64C4694.73 1555.27 4700 1542.55 4700 1529.29V500H4570Z" fill="#CECECE"/>
+<path d="M5735.36 685.35L5564.64 514.64C5555.27 505.26 5542.55 500 5529.29 500H5070.71C5057.45 500 5044.73 505.27 5035.36 514.64L4864.64 685.35C4855.27 694.73 4850 707.44 4850 720.71V1750H4980C4991.05 1750 5000 1741.05 5000 1730V1250C5000 1222.39 5022.39 1200 5050 1200H5550C5577.61 1200 5600 1222.39 5600 1250V1730C5600 1741.05 5608.95 1750 5620 1750H5750V720.71C5750 707.45 5744.73 694.73 5735.36 685.35ZM5600 1050H5000V700C5000 672.39 5022.39 650 5050 650H5550C5577.61 650 5600 672.39 5600 700V1050Z" fill="#CECECE"/>
+<path d="M6170.71 1600C6157.45 1600 6144.73 1594.73 6135.35 1585.36L6064.73 1514.73C6055.3 1505.3 6050.03 1492.5 6050.08 1479.17L6054 500H5900V1418.93C5900 1438.82 5907.9 1457.9 5921.97 1471.97L6178.03 1728.03C6192.1 1742.1 6211.18 1750 6231.07 1750H6650V1600H6170.71Z" fill="#CECECE"/>
+<path d="M7700 500H7488.11L6950 1038.11V550C6950 522.39 6927.61 500 6900 500H6806C6802.69 500 6800 506V1750H6900C6927.61 1750 6950 1727.61 6950 1700V1250C6950 1222.39 6972.39 1200 7000 1200H7429.29C7442.55 1200 7455.27 1205.27 7464.64 1214.64L7535.21 1285.21C7544.67 1294.67 7549.95 1307.53 7549.85 1320.92L7546.84 1750H7700V1381.07C7700 1361.18 7692.1 1342.1 7678.03 1328.03L7421.97 1071.97C7407.9 1057.9 7388.82 1050 7368.93 1050H7150.24L7700 500.24V500Z" fill="#CECECE"/>
+</g>
 </svg>`;
 
 const IconButton: React.FC<{
@@ -201,11 +197,11 @@ const App: React.FC = () => {
     }, [setHistoryState]);
 
     const handleNodeOverrideChange = useCallback((segmentIds: string[], overrideParams: Partial<TransformParams>) => {
-        setHistoryState(prev => {
-            const newOverrides = new Map(prev.nodeOverrides);
+        setHistoryState((prev: AppState) => {
+            const newOverrides = new Map<string, Partial<TransformParams>>(prev.nodeOverrides);
             segmentIds.forEach(id => {
-                const existing = newOverrides.get(id) || {};
-                newOverrides.set(id, { ...existing, ...overrideParams });
+                const existing = newOverrides.get(id);
+                newOverrides.set(id, { ...(existing ?? {}), ...overrideParams });
             });
             return { ...prev, nodeOverrides: Array.from(newOverrides.entries()) };
         });
@@ -987,193 +983,4 @@ const App: React.FC = () => {
                     <div className="w-px h-5 bg-gray-200 mx-1"></div>
                     <IconButton onClick={() => toggleViewOption('showGrid')} active={viewOptions.showGrid} tooltip="切換網格"><GridIcon className="w-5 h-5" /></IconButton>
                     <IconButton onClick={() => toggleViewOption('showGuides')} active={viewOptions.showGuides} tooltip="切換參考線"><GuidesIcon className="w-5 h-5"/></IconButton>
-                    <IconButton onClick={() => setIsUiVisible(v => !v)} active={isUiVisible} tooltip="顯示/隱藏介面 (Cmd+\)"><PanelsIcon className="w-5 h-5"/></IconButton>
-                    <div className="w-px h-5 bg-gray-200 mx-1"></div>
-                    <IconButton onClick={undo} disabled={!canUndo} tooltip="復原"><UndoIcon /></IconButton>
-                    <IconButton onClick={redo} disabled={!canRedo} tooltip="重做"><RedoIcon /></IconButton>
-                    <div className="w-px h-5 bg-gray-200 mx-1"></div>
-                    <IconButton onClick={handleExportSVG} disabled={!hasContent} tooltip="匯出 SVG"><DownloadIcon /></IconButton>
-                    <IconButton onClick={handleCopySVG} disabled={!hasContent} tooltip="複製 SVG"><CopyIcon /></IconButton>
-                    <IconButton onClick={handleClearCanvas} disabled={!hasContent} tooltip="清空畫布"><TrashIcon /></IconButton>
-                </div>
-            </header>
-            <main className="flex-grow flex h-[calc(100vh-49px)] overflow-hidden">
-                <AnimatePresence>
-                    {isUiVisible &&
-                        <motion.aside
-                            className="flex-shrink-0 bg-gray-50"
-                            initial={{ width: 0 }}
-                            animate={{ width: panelWidths.sidebar }}
-                            exit={{ width: 0 }}
-                            transition={{ duration: 0.2, ease: 'easeInOut' }}
-                            style={{ overflow: 'hidden' }}
-                        >
-                            <Sidebar
-                                onSelectLetter={handleSelectLetter}
-                                currentLetterKey={selectedLetter}
-                                onImportSVG={(svg) => handleSelectLetter(`imported-${Date.now()}`, svg)}
-                                layers={layers}
-                                activeLayerId={activeLayerId}
-                                onAddLayer={handleAddLayer}
-                                onDeleteLayer={handleDeleteLayer}
-                                onUpdateLayer={handleUpdateLayer}
-                                onReorderLayer={handleReorderLayer}
-                                onSetActiveLayer={setActiveLayerId}
-                            />
-                        </motion.aside>
-                    }
-                </AnimatePresence>
-                
-                {isUiVisible && <ResizeHandle onDrag={handleSidebarResize} />}
-
-                <div className="flex-grow flex flex-col relative bg-gray-100">
-                    <CanvasComponent
-                        svgData={svgData}
-                        letterKey={selectedLetter}
-                        params={params}
-                        nodeOverrides={nodeOverrides}
-                        viewOptions={viewOptions}
-                        onReady={handlePaperReady}
-                        onZoomChange={setZoomLevel}
-                        editMode={editMode}
-                        isSnapEnabled={isSnapEnabled}
-                        showGrid={viewOptions.showGrid}
-                        layers={layers}
-                        activeLayerId={activeLayerId}
-                        penSettings={penSettings}
-                        onPathComplete={handlePathComplete}
-                        onSelectionUpdate={handleSelectionUpdate}
-                        onNodeSelect={handleNodeSelect}
-                    />
-                </div>
-
-                {isUiVisible && <ResizeHandle onDrag={handleControlPanelResize} />}
-
-                <AnimatePresence>
-                    {isUiVisible &&
-                        <motion.aside
-                            className="flex-shrink-0 bg-white"
-                            initial={{ width: 0 }}
-                            animate={{ width: panelWidths.controlPanel }}
-                            exit={{ width: 0 }}
-                            transition={{ duration: 0.2, ease: 'easeInOut' }}
-                            style={{ overflow: 'hidden' }}
-                        >
-                            <ControlPanel
-                                params={params}
-                                nodeOverrides={nodeOverrides}
-                                selectedSegmentIds={selectedSegmentIds}
-                                penSettings={penSettings}
-                                onParamChange={handleParamChange}
-                                onNodeOverrideChange={handleNodeOverrideChange}
-                                onResetNodeOverrides={handleResetNodeOverrides}
-                                onPenSettingChange={setPenSettings}
-                                onApplyStyle={handleApplyStyle}
-                                disabled={!hasContent}
-                                editMode={editMode}
-                                paperScope={paperScopeRef.current}
-                                selectedItem={selectedItem}
-                            />
-                        </motion.aside>
-                    }
-                </AnimatePresence>
-            </main>
-        </>
-    );
-
-    const renderMobileLayout = () => (
-        <div className="h-screen flex flex-col bg-gray-100 overflow-hidden relative">
-            {/* Canvas Full Screen Area - Top 2/3 */}
-            <div
-                className="absolute inset-0"
-                style={{
-                    top: 0,
-                    bottom: '33.33vh',
-                    height: '66.67vh'
-                }}
-            >
-                <CanvasComponent
-                    svgData={svgData}
-                    letterKey={selectedLetter}
-                    params={params}
-                    nodeOverrides={nodeOverrides}
-                    viewOptions={viewOptions}
-                    onReady={handlePaperReady}
-                    onZoomChange={setZoomLevel}
-                    editMode={editMode}
-                    isSnapEnabled={isSnapEnabled}
-                    showGrid={viewOptions.showGrid}
-                    layers={layers}
-                    activeLayerId={activeLayerId}
-                    penSettings={penSettings}
-                    onPathComplete={handlePathComplete}
-                    onSelectionUpdate={handleSelectionUpdate}
-                    onNodeSelect={handleNodeSelect}
-                />
-            </div>
-
-            {/* Bottom Toolbar */}
-            <BottomToolbar
-                params={params}
-                onParamChange={handleParamChange}
-                layers={layers}
-                activeLayerId={activeLayerId}
-                onAddLayer={handleAddLayer}
-                onDeleteLayer={handleDeleteLayer}
-                onUpdateLayer={handleUpdateLayer}
-                onReorderLayer={handleReorderLayer}
-                onSetActiveLayer={setActiveLayerId}
-                onImportSVG={(svg) => handleSelectLetter(`imported-${Date.now()}`, svg)}
-                onExportSVG={handleExportSVG}
-                onCopySVG={handleCopySVG}
-                onClearCanvas={handleClearCanvas}
-                disabled={!hasContent}
-            />
-        </div>
-    );
-
-    return (
-        <ErrorBoundary>
-            <div onContextMenu={handleContextMenu} className="h-screen w-screen bg-white font-ui text-gray-900 flex flex-col antialiased overflow-hidden">
-                {isMobile ? renderMobileLayout() : renderDesktopLayout()}
-                
-                <AnimatePresence>
-                  {notification && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 20 }}
-                      className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-md text-sm shadow-lg z-50"
-                    >
-                      {notification}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {contextMenu && !isMobile && (
-                    <ContextMenu
-                        x={contextMenu.x}
-                        y={contextMenu.y}
-                        items={contextMenu.items}
-                        onClose={closeContextMenu}
-                    />
-                )}
-                 {nodeContextMenu && !isMobile && editMode === 'points' && (
-                    <NodeContextMenu
-                        x={nodeContextMenu.x}
-                        y={nodeContextMenu.y}
-                        segment={nodeContextMenu.segment}
-                        onSetNodeType={handleSetNodeType}
-                        onResetHandles={handleResetHandles}
-                        onDeleteNode={handleDeleteNode}
-                        onClose={() => setNodeContextMenu(null)}
-                    />
-                )}
-                
-                <PerformanceMonitor />
-            </div>
-        </ErrorBoundary>
-    );
-};
-
-export default App;
+                    <IconButton onClick={() => setIsUiVisible(v => !v)} active

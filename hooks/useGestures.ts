@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+
+import React, { useEffect, useRef } from 'react';
 
 export interface GestureState {
   pinch: { scale: number; center: { x: number; y: number } | null };
