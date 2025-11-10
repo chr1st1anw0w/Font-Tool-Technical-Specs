@@ -6,7 +6,7 @@ import type { TransformParams, PenToolSettings } from '../types';
 import { BevelType } from '../types';
 import Slider from './ui/Slider';
 import { ParametersIcon, SparklesIcon, PenToolIcon, ColorSwatchIcon, BevelIcon, NoBevelIcon, ChamferIcon, FilletIcon, InsetSquareIcon, InsetChamferIcon, InsetRoundIcon, ListIcon, LinkIcon, UnlinkIcon } from './icons';
-import ChristianWuLogo from './MagicPathLogo';
+import ChristianWuLogo from './ChristianWuLogo';
 import { aiService } from '../services/aiService';
 import CollapsiblePanel from './ui/CollapsiblePanel';
 import ColorPicker from './ui/ColorPicker';

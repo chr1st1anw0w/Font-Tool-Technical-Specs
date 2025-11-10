@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { Layer } from '../types';
 import { EyeIcon, EyeOffIcon, LockClosedIcon, LockOpenIcon, PlusIcon, TrashIcon, ArrowUpIcon, ArrowDownIcon, PencilIcon } from './icons';
