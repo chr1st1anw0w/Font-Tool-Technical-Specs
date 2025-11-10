@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import paper from 'paper';
 import type { ViewOptions, TransformParams } from '../types';
 import { drawDimensionAids } from './DimensionAids';
-import { SuperBevelService } from '../services/SuperBevelService';
+import { SuperBevelService } from './ui/services/SuperBevelService';
 
 interface GeometryManagerProps {
     paperScope: paper.PaperScope;

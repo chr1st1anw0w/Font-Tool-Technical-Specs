@@ -1,5 +1,5 @@
 import paper from 'paper';
-import { TransformParams, BevelType } from '../types';
+import { TransformParams, BevelType } from './types';
 
 enum CornerType {
   CONVEX = 'convex',   // 陽角

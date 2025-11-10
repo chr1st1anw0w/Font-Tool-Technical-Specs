@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SparklesIcon, BrainIcon } from './icons';
-import { aiService } from '../services/aiService';
+import { aiService } from './ui/services/aiService';
 
 interface AIImportPanelProps {
     onImportSVG: (svgString: string) => void;

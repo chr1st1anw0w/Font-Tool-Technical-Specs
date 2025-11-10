@@ -1,6 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { TransformParams } from '../types';
 
+/**
+ * Extracts SVG content from AI response text
+ */
 const extractSVG = (text: string): string | null => {
     const svgRegex = /<svg[^>]*>[\s\S]*?<\/svg>/i;
     const match = text.match(svgRegex);
@@ -10,15 +13,80 @@ const extractSVG = (text: string): string | null => {
     return null;
 };
 
+/**
+ * Validates user input to prevent prompt injection and abuse
+ * @throws Error if input is invalid
+ */
+const validatePrompt = (prompt: string): void => {
+    if (!prompt || typeof prompt !== 'string') {
+        throw new Error('提示不能為空');
+    }
+
+    const trimmed = prompt.trim();
+
+    if (trimmed.length === 0) {
+        throw new Error('提示不能為空');
+    }
+
+    if (trimmed.length > 2000) {
+        throw new Error('提示過長，請限制在 2000 字元以內');
+    }
+
+    // Check for potential prompt injection patterns
+    const suspiciousPatterns = [
+        /ignore\s+(previous|all|above)\s+(instructions|prompts)/i,
+        /system\s*:\s*/i,
+        /new\s+instructions\s*:/i,
+        /<script/i,
+        /javascript:/i,
+    ];
+
+    for (const pattern of suspiciousPatterns) {
+        if (pattern.test(trimmed)) {
+            throw new Error('偵測到不安全的輸入模式');
+        }
+    }
+};
+
+/**
+ * Sanitizes SVG content to prevent XSS attacks
+ * Removes potentially dangerous elements and attributes
+ */
+const sanitizeSVG = (svgString: string): string => {
+    // Remove script tags
+    let sanitized = svgString.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+
+    // Remove event handlers (onclick, onload, etc.)
+    sanitized = sanitized.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
+
+    // Remove javascript: protocol
+    sanitized = sanitized.replace(/javascript:/gi, '');
+
+    // Remove data URLs that could contain scripts (except safe image formats)
+    sanitized = sanitized.replace(/data:(?!image\/(png|jpg|jpeg|gif|svg\+xml))[^"']*/gi, '');
+
+    return sanitized;
+};
+
+/**
+ * AI Service for generating SVG graphics and style suggestions
+ * ⚠️ SECURITY WARNING: API key is exposed in client-side code
+ * Only use this for development/testing purposes
+ */
 class AIService {
     private ai: GoogleGenAI | null = null;
 
     constructor() {
-        const apiKey = process.env.API_KEY;
-        if (apiKey) {
+        // Try both old and new environment variable formats for backward compatibility
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+        if (apiKey && apiKey !== 'your-api-key-here') {
             this.ai = new GoogleGenAI({ apiKey });
+            console.log('✓ AI Service initialized successfully');
         } else {
-            console.error("Gemini API key not found. AI features will be disabled.");
+            console.warn('⚠️ Gemini API key not configured.');
+            console.warn('AI features will be disabled. Please add GEMINI_API_KEY to your .env file.');
+            console.warn('See .env.example for instructions.');
         }
     }
 
@@ -26,6 +94,9 @@ class AIService {
         if (!this.ai) {
             throw new Error("AI 服務未初始化。請設定您的 Gemini API 金鑰。");
         }
+
+        // Validate input to prevent prompt injection
+        validatePrompt(prompt);
 
         const fullPrompt = `
             Generate a single, clean, black-filled SVG based on the user's request.
@@ -60,7 +131,10 @@ class AIService {
                 throw new Error("AI 未能返回有效的 SVG。請嘗試不同的提示。");
             }
 
-            return svgString;
+            // Sanitize SVG to prevent XSS attacks
+            const sanitizedSVG = sanitizeSVG(svgString);
+
+            return sanitizedSVG;
         } catch (error) {
             console.error("Error calling Gemini API:", error);
             if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('invalid'))) {
@@ -74,6 +148,9 @@ class AIService {
         if (!this.ai) {
             throw new Error("AI 服務未初始化。請設定您的 Gemini API 金鑰。");
         }
+
+        // Validate input to prevent prompt injection
+        validatePrompt(prompt);
 
         const systemInstruction = `You are a font design assistant. Based on the user's prompt, suggest 3 distinct variations of font parameters.
         - 'weight': stroke thickness, from 1 (thin) to 200 (very bold).
@@ -114,6 +191,9 @@ class AIService {
 
     async getColorPalettes(prompt: string): Promise<{name: string, colors: string[]}[]> {
         if (!this.ai) throw new Error("AI 服務未初始化。請設定您的 Gemini API 金鑰。");
+
+        // Validate input to prevent prompt injection
+        validatePrompt(prompt);
 
         const systemInstruction = `You are a color palette expert. Based on the user's theme, generate 3 distinct color palettes. Each palette should have a descriptive name and contain 5-7 colors in HEX format.`;
 
